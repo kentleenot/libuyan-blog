@@ -29,6 +29,13 @@
 
     a {
       @apply text-foreground hover:text-accent wrap-break-word decoration-dashed underline-offset-4 focus-visible:no-underline;
+      transition: color 0.25s ease, text-decoration-color 0.25s ease;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      a {
+        transition: none;
+      }
     }
 
     ul {
