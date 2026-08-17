@@ -4,7 +4,7 @@ export default defineAstroPaperConfig({
   site: {
     url: "https://libuyan-blog.pages.dev/",
     title: "李不言的博客",
-    description: "技术学习与思考沉淀 — 桃李不言，下自成蹊",
+    description: "技术学习与思考沉淀 — 沅芷澧兰，落木萧萧",
     author: "李不言",
     profile: "https://github.com/kentleenot",
     ogImage: "default-og.jpg",
