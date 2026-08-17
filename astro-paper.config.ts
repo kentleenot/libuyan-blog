@@ -30,6 +30,7 @@ export default defineAstroPaperConfig({
   },
   socials: [
     { name: "github", url: "https://github.com/kentleenot" },
+    { name: "wechat", url: "https://mp.weixin.qq.com/mp/appmsgalbum?__biz=MzI2MjEyNjM3OQ==&action=getalbum&album_id=3613599158197616648&scene=126", linkTitle: "李不言的微信公众号" },
   ],
   shareLinks: [
     { name: "whatsapp", url: "https://wa.me/?text=" },
