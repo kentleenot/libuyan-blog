@@ -6,6 +6,9 @@ import { resolveDefaultOgImagePath } from "@/utils/resolveDefaultOgImagePath";
 import { getAssetPath } from "@/utils/withBase";
 import config from "@/config";
 import "@/styles/global.css";
+// 自托管思源宋体（明朝体），任何设备强制显示，避免手机/微信回退成黑体
+import "@fontsource/noto-serif-sc/400.css";
+import "@fontsource/noto-serif-sc/700.css";
 
 type Props = {
   title?: string;
