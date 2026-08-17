@@ -32,7 +32,7 @@ const homePath = getRelativeLocaleUrl(locale, "");
     data-home-path={homePath}
     class="app-layout my-1"
   >
-    <section id="hero" class="border-border border-b pt-8 pb-6">
+    <section id="hero" class="border-border border-b pt-10 pb-8 sm:pt-14 sm:pb-10">
       <h1 class="my-4 inline-block text-4xl font-bold sm:my-8 sm:text-5xl">
         沅芷澧兰，落木萧萧
       </h1>
@@ -53,11 +53,11 @@ const homePath = getRelativeLocaleUrl(locale, "");
         <section
           id="featured"
           class:list={[
-            "pt-12 pb-6",
+            "pt-12 pb-6 sm:pt-14 sm:pb-8",
             { "border-border border-b": recentPosts.length > 0 },
           ]}
         >
-          <h2 class="text-2xl font-semibold tracking-wide">
+          <h2 class="mb-6 text-2xl font-semibold tracking-wide">
             {t.home.featured}
           </h2>
           <ul>
@@ -71,8 +71,8 @@ const homePath = getRelativeLocaleUrl(locale, "");
 
     {
       recentPosts.length > 0 && (
-        <section id="recent-posts" class="pt-12 pb-6">
-          <h2 class="text-2xl font-semibold tracking-wide">
+        <section id="recent-posts" class="pt-12 pb-6 sm:pt-14 sm:pb-8">
+          <h2 class="mb-6 text-2xl font-semibold tracking-wide">
             {t.home.recentPosts}
           </h2>
           <ul>
@@ -84,7 +84,7 @@ const homePath = getRelativeLocaleUrl(locale, "");
       )
     }
 
-    <div class="my-8 text-center">
+    <div class="mt-12 mb-10 text-center">
       <LinkButton href={getRelativeLocaleUrl(locale, "posts")}>
         {t.home.allPosts}
         <IconArrowRight class="inline-block rtl:-rotate-180" />
