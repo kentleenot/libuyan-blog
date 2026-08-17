@@ -24,7 +24,10 @@ const { title, description, ...props } = data;
       "group-hover:text-accent/80",
     ]}
   >
-    <Heading transition:name={toTransitionName(id)}>
+    <Heading
+      transition:name={toTransitionName(id)}
+      class:list={["line-clamp-2"]}
+    >
       {title}
     </Heading>
   </a>
@@ -33,6 +36,7 @@ const { title, description, ...props } = data;
     class:list={[
       "transition-colors duration-300 ease-out motion-reduce:transition-none",
       "group-hover:text-foreground/80",
+      "line-clamp-2",
     ]}
   >
     {description}
