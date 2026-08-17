@@ -6,6 +6,13 @@
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 @layer base {
+  /* 代码保持等宽字体，不受明朝体影响 */
+  code,
+  pre,
+  .astro-code {
+    font-family: var(--font-google-sans-code), ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace !important;
+  }
+
   * {
     @apply border-border outline-accent/75;
     scrollbar-width: auto;
