@@ -19,3 +19,6 @@ description: "关于李不言和这个博客。"
 ## 联系我
 
 - GitHub: [kentleenot](https://github.com/kentleenot)
+- 微信公众号：[李不言的文章合集](https://mp.weixin.qq.com/mp/appmsgalbum?__biz=MzI2MjEyNjM3OQ==&action=getalbum&album_id=3613599158197616648&scene=126)
+
+  公众号里主要写电力与储能行业的观察，与博客互补。
