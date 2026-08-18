@@ -18,6 +18,8 @@ description: "A-share and US stock market data tools for DeepSeek Harness — �
 
 ✅ 已收录 [awesome-deepseek-harness](https://github.com/Dominic789654/awesome-deepseek-harness)（Agents 分类）· 🏷️ `dsh-plugin` topic · 📄 MIT License
 
+> ⚠️ **免责声明：** 本插件及本文内容仅供技术研究与学习交流，不构成任何投资建议。投资有风险，入市需谨慎。
+
 ---
 
 ## 为什么做
