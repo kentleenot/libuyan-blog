@@ -68,10 +68,10 @@ dsh-trading-toolkit 给智能体四个一等公民工具，让它不再对着网
 ## 快速上手
 
 ```bash
-dsh plugin add kentleenot/dsh-trading-toolkit
-# 或
-dsh plugin add github:kentleenot/dsh-trading-toolkit#main
+dsh plugin --profile web add github:kentleenot/dsh-trading-toolkit
 ```
+
+（`web` 是 profile 名，可换成你自己的 profile；安装命令经 dsh CLI 0.1.0-rc.7 实测验证。）
 
 然后直接问你的 agent："查一下宁德时代现价，顺便看看它现在是趋势还是震荡。"
 
