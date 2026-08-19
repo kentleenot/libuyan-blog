@@ -16,7 +16,7 @@ description: "A-share and US stock market data tools for DeepSeek Harness — �
 
 > A-share and US stock market data tools for DeepSeek Harness — 实时行情 · K线 · 市场状态信号 · 回测预览。只读，免 Key，双市场。
 
-✅ 已收录 [awesome-deepseek-harness](https://github.com/Dominic789654/awesome-deepseek-harness)（Agents 分类）· 🏷️ `dsh-plugin` topic · 📄 MIT License
+🏆 **收录 5/7** · [awesome-deepseek-harness](https://github.com/Dominic789654/awesome-deepseek-harness)（Dominic #130 ✅）· [awesome-dsh-plugin](https://github.com/Anil-matcha/awesome-dsh-plugin)（Anil-matcha #28 ✅）· [awesome-deepseek-harness](https://github.com/0xsline/awesome-deepseek-harness)（0xsline #381 ✅）· [Awesome-DeepSeek-Harness-Plugins](https://github.com/Zhiyuan-Fan/Awesome-DeepSeek-Harness-Plugins)（Zhiyuan-Fan #33 ✅）· [awesome-dsh-plugins](https://github.com/AdamPlatin123/awesome-dsh-plugins)（AdamPlatin123 #243 ✅ cherry-pick）· 审核中 2：awesome-dsh-plugin #1551、libukai #40 · 🏷️ `dsh-plugin` topic · 📄 MIT License
 
 > ⚠️ **免责声明：** 本插件及本文内容仅供技术研究与学习交流，不构成任何投资建议。投资有风险，入市需谨慎。
 
