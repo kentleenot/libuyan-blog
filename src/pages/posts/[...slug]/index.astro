@@ -14,6 +14,7 @@ import ShareLinks from "./_components/ShareLinks.astro";
 import BackButton from "./_components/BackButton.astro";
 import BackToTopButton from "./_components/BackToTopButton.astro";
 import AdjacentPostNav from "./_components/AdjacentPostNav.astro";
+import Giscus from "@/components/Giscus.astro";
 import config from "@/config";
 
 export async function getStaticPaths() {
@@ -94,6 +95,9 @@ if (!ogImageUrl && config.features.dynamicOgImage) {
 const ogImage = ogImageUrl
   ? new URL(ogImageUrl, Astro.url.origin).href
   : undefined;
+
+// Giscus 用文章 slug 作为讨论主题标识（每篇文章一个独立讨论线程）
+const giscusTerm = getPostSlug(post.id, post.filePath);
 ---
 
 <PostLayout
@@ -162,11 +166,16 @@ const ogImage = ogImageUrl
     <hr class="my-8 border-dashed" />
 
     <AdjacentPostNav {prevPost} {nextPost} />
+
+    <Giscus term={giscusTerm} />
   </main>
   <Footer />
 </PostLayout>
 
 <script is:inline data-astro-rerun>
+  // 每篇文章的讨论主题标识，供 Giscus 组件读取
+  window.__giscusTerm = "{giscusTerm}";
+
   function createProgressBar() {
     const progressContainer = document.createElement("div");
     progressContainer.className =

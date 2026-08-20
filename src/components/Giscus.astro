@@ -1,0 +1,55 @@
+---
+// Giscus 评论区组件（基于 GitHub Discussions，无后端，免费）
+// 配置：repo kentleenot/libuyan-blog + General 分类
+interface Props {
+  /** 用于区分不同文章的讨论主题标识 */
+  term: string;
+}
+
+const { term } = Astro.props;
+---
+
+<div id="giscus-comments" class="mt-8">
+  <h2 class="text-accent mb-4 text-xl font-bold">评论</h2>
+  <div id="giscus"></div>
+</div>
+
+<script is:inline data-astro-rerun>
+  // 等页面路由切换后重新加载 giscus，确保每篇文章加载对应的讨论
+  function loadGiscus() {
+    const container = document.getElementById("giscus");
+    if (!container) return;
+
+    const existing = document.querySelector(
+      'script[data-giscus-script][data-giscus-term="' + window.__giscusTerm + '"]'
+    );
+    if (existing) return; // 已加载过同一篇文章的评论
+
+    container.innerHTML = "";
+    const script = document.createElement("script");
+    script.src = "https://giscus.app/client.js";
+    script.setAttribute("data-repo", "kentleenot/libuyan-blog");
+    script.setAttribute("data-repo-id", "R_kgDOT6wYBg");
+    script.setAttribute("data-category", "General");
+    script.setAttribute("data-category-id", "DIC_kwDOT6wYBs4DDxPC");
+    script.setAttribute("data-mapping", "specific");
+    script.setAttribute("data-term", window.__giscusTerm);
+    script.setAttribute("data-strict", "0");
+    script.setAttribute("data-reactions-enabled", "1");
+    script.setAttribute("data-emit-metadata", "0");
+    script.setAttribute("data-input-position", "bottom");
+    script.setAttribute("data-theme", "preferred_color_scheme");
+    script.setAttribute("data-lang", "zh-CN");
+    script.setAttribute("data-giscus-script", "true");
+    script.setAttribute("data-giscus-term", window.__giscusTerm);
+    script.async = true;
+    container.appendChild(script);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", loadGiscus);
+  } else {
+    loadGiscus();
+  }
+  document.addEventListener("astro:after-swap", loadGiscus);
+</script>
