@@ -21,6 +21,28 @@ const currentYear = new Date().getFullYear();
     <Socials />
     <div class="my-2 flex flex-col items-center whitespace-nowrap sm:flex-row">
       <span>&#169; {currentYear} 李不言</span>
+      <span
+        class="text-muted-foreground ms-1 hidden text-xs sm:inline"
+        aria-label="阅读统计"
+      >
+        · 阅读
+        <span id="busuanzi_value_page_pv" class="text-accent">0</span>
+      </span>
     </div>
   </div>
+
+  <script is:inline>
+    // 不蒜子阅读统计：异步加载，失败静默，不影响页面渲染
+    (function () {
+      var s = document.createElement("script");
+      s.src =
+        "https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js";
+      s.async = true;
+      s.onerror = function () {
+        var el = document.getElementById("busuanzi_value_page_pv");
+        if (el) el.textContent = "--";
+      };
+      document.body.appendChild(s);
+    })();
+  </script>
 </footer>
