@@ -9,7 +9,7 @@ interface Props {
 const { term } = Astro.props;
 ---
 
-<div id="giscus-comments" class="mt-8">
+<div id="giscus-comments" class="mt-8" data-term={term}>
   <h2 class="text-accent mb-4 text-xl font-bold">评论</h2>
   <div id="giscus"></div>
 </div>
@@ -20,8 +20,12 @@ const { term } = Astro.props;
     const container = document.getElementById("giscus");
     if (!container) return;
 
+    // is:inline 脚本不做模板插值，term 通过 HTML data 属性传递
+    const wrapper = document.getElementById("giscus-comments");
+    const term = wrapper ? wrapper.getAttribute("data-term") : "";
+
     const existing = document.querySelector(
-      'script[data-giscus-script][data-giscus-term="' + window.__giscusTerm + '"]'
+      'script[data-giscus-script][data-giscus-term="' + term + '"]'
     );
     if (existing) return; // 已加载过同一篇文章的评论
 
@@ -33,7 +37,7 @@ const { term } = Astro.props;
     script.setAttribute("data-category", "General");
     script.setAttribute("data-category-id", "DIC_kwDOT6wYBs4DDxPC");
     script.setAttribute("data-mapping", "specific");
-    script.setAttribute("data-term", window.__giscusTerm);
+    script.setAttribute("data-term", term);
     script.setAttribute("data-strict", "0");
     script.setAttribute("data-reactions-enabled", "1");
     script.setAttribute("data-emit-metadata", "0");
@@ -41,7 +45,7 @@ const { term } = Astro.props;
     script.setAttribute("data-theme", "preferred_color_scheme");
     script.setAttribute("data-lang", "zh-CN");
     script.setAttribute("data-giscus-script", "true");
-    script.setAttribute("data-giscus-term", window.__giscusTerm);
+    script.setAttribute("data-giscus-term", term);
     script.async = true;
     container.appendChild(script);
   }

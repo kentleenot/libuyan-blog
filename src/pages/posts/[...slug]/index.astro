@@ -173,9 +173,6 @@ const giscusTerm = getPostSlug(post.id, post.filePath);
 </PostLayout>
 
 <script is:inline data-astro-rerun>
-  // 每篇文章的讨论主题标识，供 Giscus 组件读取
-  window.__giscusTerm = "{giscusTerm}";
-
   function createProgressBar() {
     const progressContainer = document.createElement("div");
     progressContainer.className =
