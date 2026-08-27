@@ -1,7 +1,7 @@
 ---
 title: "GLM-5.3-Flash：中国芯片上的 320B 前沿模型，与 Qwen/DeepSeek 的架构合流"
 author: "李不言"
-pubDatetime: 2026-08-27T11:30:00+08:00
+pubDatetime: 2026-08-27T10:30:00+08:00
 slug: glm-5.3-flash
 featured: false
 draft: false
