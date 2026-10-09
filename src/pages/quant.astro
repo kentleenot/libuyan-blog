@@ -7,7 +7,7 @@ import Footer from "@/components/Footer.astro";
 import config from "@/config";
 
 const title = "量化看板";
-const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：净值、持仓、因子与决策记录";
+const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格线、因子面板、净值曲线、持仓与成交记录";
 ---
 
 <Layout title={`${title} | ${config.site.title}`} description={description}>
@@ -20,7 +20,7 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：净值
         <span id="q-status">连接中</span>
         <span class="q-tag" id="q-src">数据源 —</span>
         <span class="q-tag" id="q-upd">—</span>
-        <span class="q-tag paper">PAPER ONLY</span>
+        <span class="q-tag">PAPER ONLY</span>
       </div>
 
       <section class="q-card">
@@ -44,20 +44,29 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：净值
       <div class="q-grid" id="q-markets"></div>
 
       <section class="q-card">
+        <h2>因子面板</h2>
+        <div class="q-tablewrap">
+          <table><thead><tr><th>因子</th><th>含义</th><th>BTC</th><th>ETH</th></tr></thead>
+          <tbody id="q-factors"><tr><td colspan="4" class="q-dim">等待因子</td></tr></tbody></table>
+        </div>
+        <p class="q-note" id="q-factor-note">15 分钟级别经验：动量因子（ret*/ma*）与未来收益负相关，即偏向均值回归。</p>
+      </section>
+
+      <section class="q-card">
         <h2>DeepSeek 决策</h2>
         <div class="q-decision">
           <div><span>最近动作</span><strong id="d-action">—</strong></div>
           <div><span>置信度</span><strong id="d-conf">—</strong></div>
-          <div><span>今日调用 / 跳过</span><strong id="d-calls">—</strong></div>
+          <div><span>调用 / 跳过</span><strong id="d-calls">—</strong></div>
           <div><span>累计 Token</span><strong id="d-tokens">—</strong></div>
         </div>
         <p class="q-reason" id="d-reason">—</p>
-        <p class="q-note">风控（止损/止盈/到期/日止损）由代码执行，不消耗 token；DeepSeek 只在价格或因子触发时才被调用。</p>
+        <p class="q-note">风控（止损 / 止盈 / 到期 / 日止损）由代码执行，不消耗 token；DeepSeek 仅在价格或因子触发时被调用。</p>
       </section>
 
       <section class="q-card">
         <h2>净值曲线</h2>
-        <div id="q-curve" class="q-curve"></div>
+        <div id="q-curve" class="q-chart"></div>
         <div class="q-curve-foot" id="q-curve-foot">等待净值记录（每分钟一条）</div>
       </section>
 
@@ -98,26 +107,66 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：净值
   const cls = (v) => v > 0 ? "q-up" : v < 0 ? "q-down" : "";
   const NAME = { "BTC-USDT-SWAP": "BTC", "ETH-USDT-SWAP": "ETH" };
   const evName = { OPEN: "开仓", CLOSE: "平仓" };
-  const rsName = { stop_loss: "止损", take_profit: "止盈", horizon_exit: "到期平仓", deepseek_close: "DeepSeek 平仓" };
+  const rsName = { stop_loss: "止损", take_profit: "止盈", horizon_exit: "到期平仓", deepseek_close: "DeepSeek 平仓", hold: "观望" };
+  const FACTORS = [
+    ["ret3", "3 根动量(45分)"], ["ret30", "30 根动量(7.5h)"], ["ret60", "60 根动量(15h)"],
+    ["ma15", "距 15 均线"], ["ma60", "距 60 均线"], ["rsi14", "RSI(14)"],
+    ["vol15", "15 波动率"], ["vol60", "60 波动率"], ["volTrend", "成交量趋势"]
+  ];
 
   async function get(path) {
     const r = await fetch((API || "") + path, { cache: "no-store" });
     return r.json();
   }
 
+  function spark(points, w, h) {
+    if (!points || points.length < 3) return '<div class="q-spark-empty">价格线积累中（每分钟一点，约 1 小时后成形）</div>';
+    const vs = points.map((p) => p.p);
+    let lo = Math.min.apply(null, vs), hi = Math.max.apply(null, vs);
+    const pad = Math.max((hi - lo) * 0.12, Math.abs(hi) * 0.0002);
+    lo -= pad; hi += pad;
+    const X = (i) => (i / (points.length - 1) * 1000).toFixed(1);
+    const Y = (v) => (h - 14 - (v - lo) / (hi - lo) * (h - 26)).toFixed(1);
+    const d = points.map((p, i) => (i ? "L" : "M") + " " + X(i) + " " + Y(p.p)).join(" ");
+    const up = vs[vs.length - 1] >= vs[0];
+    const color = up ? "#16a34a" : "#dc2626";
+    return '<svg viewBox="0 0 1000 ' + h + '" preserveAspectRatio="none" class="q-chart-svg"><path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="1.8" vector-effect="non-scaling-stroke"/></svg>';
+  }
+
   function renderMarkets(s) {
     const qs = {}; (s.quotes || []).forEach((q) => { qs[q.asset] = q; });
+    const hist = s.priceHist || {};
     el("q-markets").innerHTML = (s.config.assets || []).map((a) => {
       const q = qs[a] || {}, f = (s.factors || {})[a] || {};
-      return '<article class="q-card"><h2>' + (NAME[a] || a) + ' / USDT 永续</h2>' +
+      const hp = hist[a] || [];
+      const first = hp.length ? hp[0].p : null, last = hp.length ? hp[hp.length - 1].p : null;
+      const chg = (first && last) ? (last / first - 1) : null;
+      return '<article class="q-card"><div class="q-mtitle"><h2>' + (NAME[a] || a) + ' / USDT 永续</h2><span class="' + cls(chg) + '">' + (chg == null ? "—" : (chg > 0 ? "+" : "") + pct(chg)) + '</span></div>' +
         '<div class="q-price"><span class="q-big">' + px(q.last) + '</span><small>买 ' + px(q.bid) + ' / 卖 ' + px(q.ask) + '</small></div>' +
+        spark(hp, 130) +
+        '<div class="q-row"><span>rsi14</span><b class="' + (f.rsi14 > 70 ? "q-down" : f.rsi14 < 30 ? "q-up" : "") + '">' + num(f.rsi14, 1) + '</b></div>' +
         '<div class="q-row"><span>ret60</span><b>' + (f.ret60 == null ? "—" : pct(f.ret60)) + '</b></div>' +
-        '<div class="q-row"><span>ma60</span><b>' + (f.ma60 == null ? "—" : pct(f.ma60)) + '</b></div>' +
-        '<div class="q-row"><span>rsi14</span><b>' + num(f.rsi14, 1) + '</b></div>' +
-        '<div class="q-row"><span>vol15</span><b>' + num(f.vol15, 3) + '</b></div>' +
-        '<div class="q-row"><span>volTrend</span><b>' + num(f.volTrend, 2) + '</b></div>' +
         '</article>';
     }).join("");
+  }
+
+  function renderFactors(s) {
+    const fa = s.factors || {};
+    const assets = s.config.assets || [];
+    el("q-factors").innerHTML = FACTORS.map((row) => {
+      const f = row[0];
+      const cells = assets.map((a) => {
+        const v = (fa[a] || {})[f];
+        if (v == null) return '<td class="q-dim">—</td>';
+        if (f === "rsi14") {
+          const c = v > 70 ? "q-down" : v < 30 ? "q-up" : "";
+          return '<td class="' + c + '">' + Number(v).toFixed(1) + '</td>';
+        }
+        const c = v > 0 ? "q-up" : v < 0 ? "q-down" : "";
+        return '<td class="' + c + '">' + (f.indexOf("vol") === 0 ? Number(v).toFixed(3) : Number(v).toFixed(4)) + '</td>';
+      }).join("");
+      return '<tr><td><b>' + f + '</b></td><td class="q-dim">' + row[1] + '</td>' + cells + '</tr>';
+    }).join("") || '<tr><td colspan="4" class="q-dim">等待因子</td></tr>';
   }
 
   function renderPositions(s) {
@@ -129,7 +178,7 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：净值
   }
 
   function renderTrades(s) {
-    if (!s.trades || !s.trades.length) { el("q-trades").innerHTML = '<tr><td colspan="6" class="q-dim">暂无成交</td></tr>'; return; }
+    if (!s.trades || !s.trades.length) { el("q-trades").innerHTML = '<tr><td colspan="6" class="q-dim">暂无成交（DeepSeek 还没开过仓）</td></tr>'; return; }
     el("q-trades").innerHTML = s.trades.map((x) => '<tr><td><b>' + (NAME[x.asset] || x.asset) + '</b> <span class="' + (x.side === "LONG" ? "q-up" : "q-down") + '">' + x.side + '</span></td>' +
       '<td>' + px(x.entry) + ' → ' + px(x.exit) + '</td><td>' + num(x.qty, 5) + '</td><td>' + money(x.fee) + '</td>' +
       '<td class="' + cls(x.net) + '">' + money(x.net, true) + '</td><td>' + (rsName[x.reason] || x.reason) + '</td></tr>').join("");
@@ -138,17 +187,17 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：净值
   function renderEvents(s) {
     if (!s.events || !s.events.length) { el("q-events").textContent = "等待事件"; return; }
     el("q-events").innerHTML = s.events.slice(0, 12).map((e) =>
-      '<div class="q-ev"><small>' + t(e.ts) + ' · ' + (NAME[e.asset] || e.asset || "") + '</small> ' +
+      '<div class="q-ev"><small>' + t(e.ts) + ' · ' + (NAME[e.asset] || "") + '</small> ' +
       (evName[e.type] || e.type) + ' · ' + (rsName[e.reason] || e.reason) + '</div>').join("");
   }
 
   function renderState(s) {
     const a = s.account || {}, c = s.config || {}, ad = s.advisor || {}, d = s.day || {};
     el("q-dot").classList.add("q-on");
-    el("q-status").textContent = s.halt_reason === "daily_loss_limit" ? "已触发日止损 · 今日停止新仓" : (s.status === "RUNNING" ? "运行中" : s.status);
-    el("q-src").textContent = "数据源 " + (s.quoteSource || "—");
+    el("q-status").textContent = s.halt_reason === "daily_loss_limit" ? "已触发日止损 · 今日停止新仓" : (s.status === "RUNNING" ? "运行中" : (s.status || "—"));
+    el("q-src").textContent = "数据源 " + (s.quoteSource || "—") + (s.quoteNote ? "（" + s.quoteNote + "）" : "");
     el("q-upd").textContent = "行情 " + t(a.last_success);
-    el("m-equity").textContent = money(a.equity); el("m-equity").className = "";
+    el("m-equity").textContent = money(a.equity);
     const net = el("m-net"); net.textContent = money(a.net_pnl, true); net.className = cls(a.net_pnl);
     const real = el("m-real"); real.textContent = money(a.realized_pnl, true); real.className = cls(a.realized_pnl);
     el("m-cash").textContent = money(a.available);
@@ -160,11 +209,12 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：净值
     el("q-risk-fill").style.width = Math.min(100, Math.max(0, dayLoss / limit * 100)) + "%";
     el("q-risk-text").textContent = "日止损上限 " + money(limit) + "（已用 " + (dayLoss / limit * 100).toFixed(0) + "%）";
     el("d-action").textContent = ad.lastAction || "—";
-    el("d-conf").textContent = ad.byAsset && Object.values(ad.byAsset)[0] ? pct(Object.values(ad.byAsset)[0].confidence, 1) : "—";
+    const first = ad.byAsset && Object.keys(ad.byAsset)[0] ? ad.byAsset[Object.keys(ad.byAsset)[0]] : null;
+    el("d-conf").textContent = first && first.confidence != null ? pct(first.confidence, 1) : "—";
     el("d-calls").textContent = (ad.calls || 0) + " / " + (ad.skipped || 0);
     el("d-tokens").textContent = (ad.tokens || 0).toLocaleString();
     el("d-reason").textContent = ad.lastReason ? "理由：" + ad.lastReason : "—";
-    renderMarkets(s); renderPositions(s); renderTrades(s); renderEvents(s);
+    renderMarkets(s); renderFactors(s); renderPositions(s); renderTrades(s); renderEvents(s);
   }
 
   function drawCurve(points) {
@@ -176,14 +226,13 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：净值
     const Y = (v) => 150 - (v - lo) / (hi - lo) * 130;
     const d = points.map((p, i) => (i ? "L" : "M") + " " + X(i).toFixed(1) + " " + Y(p.equity).toFixed(1)).join(" ");
     el("q-curve").innerHTML = '<svg viewBox="0 0 1000 160" preserveAspectRatio="none" role="img" aria-label="模拟账户净值曲线"><path d="' + d + '" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>';
-    el("q-curve-foot").textContent = points.length + " 个净值点 · 最低 " + money(lo + pad) + " / 最高 " + money(hi - pad) + " / 最新 " + money(vs[vs.length - 1]);
+    el("q-curve-foot").textContent = points.length + " 个净值点 · 最新 " + money(vs[vs.length - 1]);
   }
 
   async function refresh() {
     try {
       const s = await get("/api/state");
-      if (s && s.ok) renderState(s);
-      else throw new Error("state");
+      if (s && s.ok) renderState(s); else throw new Error("state");
     } catch (e) {
       el("q-dot").classList.remove("q-on");
       el("q-status").textContent = "后端暂不可用";
@@ -204,20 +253,23 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：净值
   .q-dot.q-on { background: #16a34a; box-shadow: 0 0 8px rgba(22,163,74,.6); }
   .q-tag { border: 1px solid var(--border); border-radius: 999px; padding: 1px 9px; font-size: 11px; color: var(--muted-foreground); }
   .q-card { border: 1px solid var(--border); border-radius: 10px; padding: 14px; background: var(--muted); }
-  .q-card h2 { margin: 0 0 10px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted-foreground); font-weight: 600; }
-  .q-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
-  .q-grid .q-card { background: var(--muted); }
-  .q-metrics { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
+  .q-card h2 { margin: 0; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted-foreground); font-weight: 600; }
+  .q-mtitle { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .q-mtitle span { font-size: 12px; }
+  .q-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+  .q-metrics { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); margin-top: 4px; }
   .q-metrics div { display: flex; flex-direction: column; gap: 2px; }
   .q-metrics span { font-size: 11px; color: var(--muted-foreground); }
   .q-metrics strong { font-size: 16px; color: var(--foreground); font-weight: 600; }
   .q-big { font-size: 22px; font-weight: 600; color: var(--foreground); }
-  .q-price { display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px; }
+  .q-price { display: flex; flex-direction: column; gap: 2px; margin: 8px 0 4px; }
   .q-price small { color: var(--muted-foreground); font-size: 11px; }
   .q-row { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; padding: 3px 0; color: var(--muted-foreground); }
   .q-row b { color: var(--foreground); font-weight: 500; }
   .q-up { color: #16a34a; } .q-down { color: #dc2626; }
-  .q-decision { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+  .q-chart-svg { width: 100%; height: 130px; display: block; margin: 6px 0; }
+  .q-spark-empty { font-size: 11px; color: var(--muted-foreground); padding: 34px 0; text-align: center; }
+  .q-decision { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); margin-top: 4px; }
   .q-decision div { display: flex; flex-direction: column; gap: 2px; }
   .q-decision span { font-size: 11px; color: var(--muted-foreground); }
   .q-decision strong { font-size: 15px; color: var(--foreground); }
@@ -226,9 +278,9 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：净值
   .q-risk-bar { height: 6px; border-radius: 999px; background: var(--border); overflow: hidden; }
   .q-risk-bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
   .q-risk small { display: block; margin-top: 4px; font-size: 11px; color: var(--muted-foreground); }
-  .q-curve svg { width: 100%; height: 160px; display: block; }
+  .q-chart svg { width: 100%; height: 160px; display: block; }
   .q-curve-foot { font-size: 11px; color: var(--muted-foreground); margin-top: 6px; }
-  .q-tablewrap { overflow-x: auto; }
+  .q-tablewrap { overflow-x: auto; margin-top: 4px; }
   .q-tablewrap table { width: 100%; border-collapse: collapse; font-size: 12px; }
   .q-tablewrap th { text-align: left; font-weight: 600; color: var(--muted-foreground); padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
   .q-tablewrap td { padding: 6px 8px; border-bottom: 1px solid var(--border); color: var(--foreground); white-space: nowrap; }
@@ -236,7 +288,7 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：净值
   .q-events { font-size: 12px; line-height: 1.7; }
   .q-ev { color: var(--foreground); }
   .q-ev small { color: var(--muted-foreground); }
-  .q-note { font-size: 11px; color: var(--muted-foreground); }
+  .q-note { font-size: 11px; color: var(--muted-foreground); margin-top: 8px; }
   :global(.dark) .q-up { color: #4ade80; }
   :global(.dark) .q-down { color: #f87171; }
 </style>
