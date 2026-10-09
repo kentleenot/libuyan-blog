@@ -20,11 +20,11 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
         <span id="q-status">连接中</span>
         <span class="q-tag" id="q-src">数据源 —</span>
         <span class="q-tag" id="q-upd">—</span>
-        <span class="q-tag">PAPER ONLY</span>
+        <span class="q-tag" id="q-mode">—</span>
       </div>
 
       <section class="q-card">
-        <h2>账户</h2>
+        <h2 id="q-acct-title">账户</h2>
         <div class="q-metrics">
           <div><span>净值</span><strong id="m-equity">—</strong></div>
           <div><span>净盈亏</span><strong id="m-net">—</strong></div>
@@ -91,7 +91,7 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
         <div id="q-events" class="q-events q-dim">等待事件</div>
       </section>
 
-      <p class="q-note">模拟盘（PAPER），不发送真实订单。行情来自公开接口，账户接口由服务端签名，密钥不下发浏览器。本页仅供研究，不构成投资建议。</p>
+      <p class="q-note" id="q-disclaimer">行情来自公开接口；账户与下单由服务端签名，密钥不下发浏览器。本页仅供研究，不构成投资建议。</p>
     </div>
   </Main>
   <Footer />
@@ -197,6 +197,11 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
     el("q-status").textContent = s.halt_reason === "daily_loss_limit" ? "已触发日止损 · 今日停止新仓" : (s.status === "RUNNING" ? "运行中" : (s.status || "—"));
     el("q-src").textContent = "数据源 " + (s.quoteSource || "—") + (s.quoteNote ? "（" + s.quoteNote + "）" : "");
     el("q-upd").textContent = "行情 " + t(a.last_success);
+    const mode = el("q-mode");
+    if (s.live) { mode.textContent = "实盘 LIVE"; mode.className = "q-tag live"; }
+    else { mode.textContent = "模拟 PAPER"; mode.className = "q-tag"; }
+    el("q-acct-title").textContent = s.live ? "真实账户（OKX 实盘）" : "模拟账户";
+    if (s.live) el("q-disclaimer").textContent = "实盘模式：真实资金、真实市价单（全仓 3×，单笔 20 USDT，最多 2 仓）。风控：止损 1.2% / 止盈 2.5% / 15 分钟到期 / 日亏 5 USDT 停止开仓。密钥不下发浏览器。";
     el("m-equity").textContent = money(a.equity);
     const net = el("m-net"); net.textContent = money(a.net_pnl, true); net.className = cls(a.net_pnl);
     const real = el("m-real"); real.textContent = money(a.realized_pnl, true); real.className = cls(a.realized_pnl);
@@ -252,6 +257,8 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
   .q-dot { width: 8px; height: 8px; border-radius: 50%; background: #9ca3af; display: inline-block; }
   .q-dot.q-on { background: #16a34a; box-shadow: 0 0 8px rgba(22,163,74,.6); }
   .q-tag { border: 1px solid var(--border); border-radius: 999px; padding: 1px 9px; font-size: 11px; color: var(--muted-foreground); }
+  .q-tag.live { border-color: #dc2626; color: #dc2626; font-weight: 600; }
+  :global(.dark) .q-tag.live { color: #f87171; border-color: #f87171; }
   .q-card { border: 1px solid var(--border); border-radius: 10px; padding: 14px; background: var(--muted); }
   .q-card h2 { margin: 0; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted-foreground); font-weight: 600; }
   .q-mtitle { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
