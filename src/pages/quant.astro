@@ -7,7 +7,7 @@ import Footer from "@/components/Footer.astro";
 import config from "@/config";
 
 const title = "量化看板";
-const description = "BTC / ETH 实时行情与 OKX 账户看板";
+const description = "BTC / ETH 实时行情、OKX 账户与策略信号看板";
 ---
 
 <Layout title={`${title} | ${config.site.title}`} description={description}>
@@ -17,27 +17,35 @@ const description = "BTC / ETH 实时行情与 OKX 账户看板";
 
   <Main pageTitle={title}>
     <div class="q-wrap">
-      <div class="q-status">
+      <div class="q-bar">
         <span class="q-dot" id="q-dot"></span>
         <span id="q-status-text">连接中</span>
         <span class="q-tag">数据源 OKX</span>
         <span class="q-tag">刷新 5s</span>
+        <span class="q-tag" id="q-updated">—</span>
       </div>
 
       <div class="q-grid" id="q-tickers"></div>
 
-      <div class="q-card q-wide">
+      <section class="q-card">
         <h2>BTC / ETH 价格线 · 1H</h2>
         <canvas id="q-chart"></canvas>
         <div class="q-err" id="q-chart-err"></div>
-      </div>
+      </section>
 
-      <div class="q-card q-wide">
+      <section class="q-card">
         <h2>OKX 账户</h2>
         <div id="q-acct" class="q-dim">加载中…</div>
-      </div>
+      </section>
 
-      <p class="q-note">行情来自 OKX 公开接口；账户数据由服务端签名获取，密钥不下发到浏览器。本页仅为数据展示，不构成投资建议。</p>
+      <section class="q-card">
+        <h2>策略信号</h2>
+        <div id="q-signal" class="q-dim">待接入（下一步接 D 盘策略输出）</div>
+      </section>
+
+      <p class="q-note">
+        行情来自 OKX 公开接口；账户数据由服务端签名获取，密钥不下发到浏览器。本页仅为数据展示，不构成投资建议。
+      </p>
     </div>
   </Main>
 
@@ -60,7 +68,7 @@ const description = "BTC / ETH 实时行情与 OKX 账户看板";
     const cls = x.chg >= 0 ? "q-up" : "q-down";
     return '<div class="q-card"><h2>' + x.name + ' / USDT</h2>' +
       '<div><span class="q-big">' + fmt(x.last) + '</span>' +
-      '<span class="' + cls + ' q-chg">' + (x.chg >= 0 ? "+" : "") + x.chg.toFixed(2) + '%</span></div>' +
+      '<span class="q-chg ' + cls + '">' + (x.chg >= 0 ? "+" : "") + x.chg.toFixed(2) + '%</span></div>' +
       '<div class="q-row"><span>24h 高</span><b>' + fmt(x.high) + '</b></div>' +
       '<div class="q-row"><span>24h 低</span><b>' + fmt(x.low) + '</b></div>' +
       '<div class="q-row"><span>24h 量</span><b>' + fmt(x.vol, 0) + '</b></div></div>';
@@ -78,6 +86,7 @@ const description = "BTC / ETH 实时行情与 OKX 账户看板";
       $("#q-tickers").innerHTML = rows.map(card).join("");
       $("#q-dot").classList.add("q-on");
       $("#q-status-text").textContent = "已连接";
+      $("#q-updated").textContent = new Date().toLocaleTimeString("zh-CN", { hour12: false });
       $("#q-chart-err").textContent = "";
     } catch (e) {
       $("#q-dot").classList.remove("q-on");
@@ -91,7 +100,7 @@ const description = "BTC / ETH 实时行情与 OKX 账户看板";
       const out = {};
       for (const p of PAIRS) {
         const d = await jget(PUB, "/v5/market/candles?instId=" + p.id + "&bar=1H&limit=120");
-        out[p.name] = d.map(r => ({ c: parseFloat(r[4]) })).reverse();
+        out[p.name] = d.map((r) => ({ c: parseFloat(r[4]) })).reverse();
       }
       draw(out);
     } catch (e) { $("#q-chart-err").textContent = "K线获取失败：" + e.message; }
@@ -99,12 +108,14 @@ const description = "BTC / ETH 实时行情与 OKX 账户看板";
 
   function draw(series) {
     const cv = $("#q-chart"); if (!cv) return;
+    const dark = document.documentElement.classList.contains("dark");
+    const grid = dark ? "#3a3d44" : "#e5e1da";
     const dpr = window.devicePixelRatio || 1;
     const w = cv.clientWidth, h = cv.clientHeight;
     cv.width = w * dpr; cv.height = h * dpr;
     const g = cv.getContext("2d"); g.scale(dpr, dpr); g.clearRect(0, 0, w, h);
-    const colors = { BTC: "#f7931a", ETH: "#8a9bff" };
-    const pad = { l: 8, r: 8, t: 12, b: 20 };
+    const colors = { BTC: "#f7931a", ETH: dark ? "#9aa8ff" : "#4f6ef7" };
+    const pad = { l: 10, r: 10, t: 14, b: 22 };
     let min = Infinity, max = -Infinity;
     for (const k in series) for (const p of series[k]) { min = Math.min(min, p.c); max = Math.max(max, p.c); }
     if (!isFinite(min)) return;
@@ -112,12 +123,12 @@ const description = "BTC / ETH 实时行情与 OKX 账户看板";
     const n = (series.BTC && series.BTC.length) || 1;
     const X = (i) => pad.l + (w - pad.l - pad.r) * i / Math.max(1, n - 1);
     const Y = (v) => pad.t + (h - pad.t - pad.b) * (1 - (v - min) / (max - min));
-    g.strokeStyle = "#1e2430"; g.lineWidth = 1;
+    g.strokeStyle = grid; g.lineWidth = 1;
     for (let i = 0; i <= 4; i++) { const y = pad.t + (h - pad.t - pad.b) * i / 4; g.beginPath(); g.moveTo(pad.l, y); g.lineTo(w - pad.r, y); g.stroke(); }
     for (const k in series) {
       const s = series[k]; if (!s || !s.length) continue;
       g.strokeStyle = colors[k]; g.lineWidth = 1.6; g.beginPath();
-      s.forEach((p, i) => { i ? g.lineTo(X(i), Y(p.c)) : g.moveTo(X(i), Y(p.c)); });
+      s.forEach((pt, i) => { i ? g.lineTo(X(i), Y(pt.c)) : g.moveTo(X(i), Y(pt.c)); });
       g.stroke();
     }
   }
@@ -127,13 +138,22 @@ const description = "BTC / ETH 实时行情与 OKX 账户看板";
     try {
       const b = await jget(PRIV, "/v5/account/balance");
       const d = (b && b[0]) || {};
-      const usdt = (d.details || []).find(x => x.ccy === "USDT") || {};
-      let html = '<div><span class="q-big">$' + fmt(d.totalEq || 0) + '</span><span class="q-dim" style="margin-left:10px">总权益 (USD)</span></div>' +
+      const usdt = (d.details || []).find((x) => x.ccy === "USDT") || {};
+      let html = '<div><span class="q-big">$' + fmt(d.totalEq || 0) + '</span><span class="q-dim q-indent">总权益 (USD)</span></div>' +
         '<div class="q-row"><span>USDT 可用</span><b>' + fmt(usdt.availBal || 0) + '</b></div>' +
         '<div class="q-row"><span>USDT 冻结</span><b>' + fmt(usdt.frozenBal || 0) + '</b></div>';
       try {
-        const p = await jget(PRIV, "/v5/account/positions");
-        html += '<div class="q-row" style="margin-top:8px"><span>持仓</span><b>' + (p && p.length ? p.length + " 个" : "无") + '</b></div>';
+        const pos = await jget(PRIV, "/v5/account/positions");
+        if (pos && pos.length) {
+          html += '<div class="q-row q-head"><span>持仓</span><span>方向 / 数量 / 未实现盈亏</span></div>';
+          for (const x of pos) {
+            const pnl = parseFloat(x.upl || 0);
+            html += '<div class="q-row"><span>' + x.instId + '</span><b class="' + (pnl >= 0 ? "q-up" : "q-down") + '">' +
+              (x.posSide || "net") + ' / ' + x.pos + ' / ' + (pnl >= 0 ? "+" : "") + pnl.toFixed(2) + '</b></div>';
+          }
+        } else {
+          html += '<div class="q-row"><span>持仓</span><b>无</b></div>';
+        }
       } catch (e) {}
       el.innerHTML = html;
     } catch (e) {
@@ -150,21 +170,26 @@ const description = "BTC / ETH 实时行情与 OKX 账户看板";
 
 <style>
   .q-wrap { display: flex; flex-direction: column; gap: 14px; }
-  .q-status { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted, #7d8798); }
-  .q-dot { width: 8px; height: 8px; border-radius: 50%; background: #888; display: inline-block; }
-  .q-dot.q-on { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
-  .q-tag { border: 1px solid rgba(125, 135, 152, 0.35); border-radius: 999px; padding: 1px 9px; font-size: 11px; }
-  .q-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-  .q-card { border: 1px solid rgba(125, 135, 152, 0.25); border-radius: 10px; padding: 14px; background: rgba(125, 135, 152, 0.06); }
-  .q-wide { width: 100%; }
-  .q-card h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted, #7d8798); font-weight: 600; }
-  .q-big { font-size: 24px; font-weight: 600; }
+  .q-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted-foreground); }
+  .q-dot { width: 8px; height: 8px; border-radius: 50%; background: #9ca3af; display: inline-block; }
+  .q-dot.q-on { background: #16a34a; box-shadow: 0 0 8px rgba(22, 163, 74, 0.6); }
+  .q-tag { border: 1px solid var(--border); border-radius: 999px; padding: 1px 9px; font-size: 11px; color: var(--muted-foreground); }
+  .q-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+  .q-card { border: 1px solid var(--border); border-radius: 10px; padding: 14px; background: var(--muted); }
+  .q-card h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-foreground); font-weight: 600; }
+  .q-big { font-size: 24px; font-weight: 600; color: var(--foreground); }
   .q-chg { font-size: 12px; margin-left: 8px; }
-  .q-up { color: #22c55e; } .q-down { color: #ef4444; }
-  .q-row { display: flex; justify-content: space-between; font-size: 12px; padding: 2px 0; color: var(--muted, #7d8798); }
-  .q-row b { color: inherit; font-weight: 500; }
-  .q-dim { color: var(--muted, #7d8798); font-size: 12px; }
-  .q-err { color: #ef4444; font-size: 11px; min-height: 14px; }
-  .q-note { font-size: 11px; color: var(--muted, #7d8798); }
+  .q-indent { margin-left: 10px; }
+  .q-up { color: #16a34a; }
+  .q-down { color: #dc2626; }
+  .q-row { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; padding: 3px 0; color: var(--muted-foreground); }
+  .q-row b { color: var(--foreground); font-weight: 500; }
+  .q-head { border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+  .q-dim { color: var(--muted-foreground); font-size: 12px; }
+  .q-err { color: #dc2626; font-size: 11px; min-height: 14px; }
+  .q-note { font-size: 11px; color: var(--muted-foreground); }
   #q-chart { width: 100%; height: 220px; display: block; }
+  :global(.dark) .q-up { color: #4ade80; }
+  :global(.dark) .q-down { color: #f87171; }
+  :global(.dark) .q-err { color: #f87171; }
 </style>
