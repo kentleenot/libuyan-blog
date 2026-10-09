@@ -26,12 +26,15 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
       <section class="q-card">
         <h2 id="q-acct-title">账户</h2>
         <div class="q-metrics">
-          <div><span>净值</span><strong id="m-equity">—</strong></div>
-          <div><span>净盈亏</span><strong id="m-net">—</strong></div>
-          <div><span>已实现</span><strong id="m-real">—</strong></div>
+          <div><span id="l-equity">净值</span><strong id="m-equity">—</strong></div>
+          <div><span id="l-net">净盈亏</span><strong id="m-net">—</strong></div>
+          <div><span id="l-upl">未实现盈亏</span><strong id="m-upl">—</strong></div>
           <div><span>可用</span><strong id="m-cash">—</strong></div>
-          <div><span>手续费</span><strong id="m-fees">—</strong></div>
-          <div><span>持仓 / 平仓</span><strong id="m-counts">—</strong></div>
+          <div><span id="l-real">已实现</span><strong id="m-real">—</strong></div>
+          <div><span id="l-fees">手续费</span><strong id="m-fees">—</strong></div>
+          <div><span>总敞口</span><strong id="m-gross">—</strong></div>
+          <div><span>杠杆</span><strong id="m-lev">—</strong></div>
+          <div><span id="l-counts">持仓 / 平仓</span><strong id="m-counts">—</strong></div>
           <div><span>最大回撤</span><strong id="m-dd">—</strong></div>
           <div><span>今日亏损</span><strong id="m-day">—</strong></div>
         </div>
@@ -174,7 +177,7 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
     el("q-pos").innerHTML = s.positions.map((p) => '<tr><td><b>' + (NAME[p.asset] || p.asset) + '</b> <span class="' + (p.side === "LONG" ? "q-up" : "q-down") + '">' + p.side + '</span></td>' +
       '<td>' + t(p.openedAt) + '</td><td>' + px(p.entry) + '</td><td>' + num(p.qty, 5) + '</td><td>' + money(p.notional) + '</td>' +
       '<td>' + pct(p.stopPct) + ' / ' + pct(p.targetPct) + '</td>' +
-      '<td class="' + cls(p.last_mark) + '">' + money(p.last_mark, true) + '</td></tr>').join("");
+      '<td class="' + cls(p.upl != null ? p.upl : p.last_mark) + '">' + money(p.upl != null ? p.upl : p.last_mark, true) + (p.lever ? ' <small>' + p.lever + '×</small>' : '') + '</td></tr>').join("");
   }
 
   function renderTrades(s) {
@@ -203,11 +206,21 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
     el("q-acct-title").textContent = s.live ? "真实账户（OKX 实盘）" : "模拟账户";
     if (s.live) el("q-disclaimer").textContent = "实盘模式：真实资金、真实市价单（全仓 3×，单笔 20 USDT，最多 2 仓）。风控：止损 1.2% / 止盈 2.5% / 15 分钟到期 / 日亏 5 USDT 停止开仓。密钥不下发浏览器。";
     el("m-equity").textContent = money(a.equity);
+    if (s.live && a.live_base != null) el("m-equity").title = "基准 " + money(a.live_base);
     const net = el("m-net"); net.textContent = money(a.net_pnl, true); net.className = cls(a.net_pnl);
     const real = el("m-real"); real.textContent = money(a.realized_pnl, true); real.className = cls(a.realized_pnl);
+    const upl = el("m-upl"); upl.textContent = money(a.unrealized_pnl != null ? a.unrealized_pnl : 0, true); upl.className = cls(a.unrealized_pnl);
     el("m-cash").textContent = money(a.available);
     el("m-fees").textContent = money(a.fees_paid);
-    el("m-counts").textContent = (a.open_positions || 0) + " / " + (a.closed_trades || 0);
+    el("m-gross").textContent = a.gross_exposure ? money(a.gross_exposure) : "—";
+    el("m-lev").textContent = a.gross_leverage ? (Number(a.gross_leverage).toFixed(2) + "×") : "—";
+    el("m-counts").textContent = (a.open_positions || 0) + (a.closed_trades == null ? " / —" : " / " + a.closed_trades);
+    if (s.live) {
+      el("l-equity").textContent = "真实权益";
+      el("l-net").textContent = "自启动净盈亏";
+      el("l-real").textContent = (a.realized_pnl == null ? "已实现（OKX）" : "已实现");
+      el("l-counts").textContent = "持仓 / 平仓（OKX）";
+    }
     el("m-dd").textContent = pct(a.max_drawdown);
     const dayLoss = d.loss || 0, limit = (d.limitU || c.dailyLossU || 5);
     const day = el("m-day"); day.textContent = money(dayLoss, true); day.className = dayLoss > 0 ? "q-down" : "";
