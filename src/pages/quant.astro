@@ -7,189 +7,236 @@ import Footer from "@/components/Footer.astro";
 import config from "@/config";
 
 const title = "量化看板";
-const description = "BTC / ETH 实时行情、OKX 账户与策略信号看板";
+const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：净值、持仓、因子与决策记录";
 ---
 
 <Layout title={`${title} | ${config.site.title}`} description={description}>
   <Header />
-
   <Breadcrumb />
-
   <Main pageTitle={title}>
     <div class="q-wrap">
       <div class="q-bar">
         <span class="q-dot" id="q-dot"></span>
-        <span id="q-status-text">连接中</span>
-        <span class="q-tag">数据源 OKX</span>
-        <span class="q-tag">刷新 5s</span>
-        <span class="q-tag" id="q-updated">—</span>
+        <span id="q-status">连接中</span>
+        <span class="q-tag" id="q-src">数据源 —</span>
+        <span class="q-tag" id="q-upd">—</span>
+        <span class="q-tag paper">PAPER ONLY</span>
       </div>
 
-      <div class="q-grid" id="q-tickers"></div>
+      <section class="q-card">
+        <h2>账户</h2>
+        <div class="q-metrics">
+          <div><span>净值</span><strong id="m-equity">—</strong></div>
+          <div><span>净盈亏</span><strong id="m-net">—</strong></div>
+          <div><span>已实现</span><strong id="m-real">—</strong></div>
+          <div><span>可用</span><strong id="m-cash">—</strong></div>
+          <div><span>手续费</span><strong id="m-fees">—</strong></div>
+          <div><span>持仓 / 平仓</span><strong id="m-counts">—</strong></div>
+          <div><span>最大回撤</span><strong id="m-dd">—</strong></div>
+          <div><span>今日亏损</span><strong id="m-day">—</strong></div>
+        </div>
+        <div class="q-risk">
+          <div class="q-risk-bar"><i id="q-risk-fill"></i></div>
+          <small id="q-risk-text">日止损上限 —</small>
+        </div>
+      </section>
+
+      <div class="q-grid" id="q-markets"></div>
 
       <section class="q-card">
-        <h2>BTC / ETH 价格线 · 1H</h2>
-        <canvas id="q-chart"></canvas>
-        <div class="q-err" id="q-chart-err"></div>
+        <h2>DeepSeek 决策</h2>
+        <div class="q-decision">
+          <div><span>最近动作</span><strong id="d-action">—</strong></div>
+          <div><span>置信度</span><strong id="d-conf">—</strong></div>
+          <div><span>今日调用 / 跳过</span><strong id="d-calls">—</strong></div>
+          <div><span>累计 Token</span><strong id="d-tokens">—</strong></div>
+        </div>
+        <p class="q-reason" id="d-reason">—</p>
+        <p class="q-note">风控（止损/止盈/到期/日止损）由代码执行，不消耗 token；DeepSeek 只在价格或因子触发时才被调用。</p>
       </section>
 
       <section class="q-card">
-        <h2>OKX 账户</h2>
-        <div id="q-acct" class="q-dim">加载中…</div>
+        <h2>净值曲线</h2>
+        <div id="q-curve" class="q-curve"></div>
+        <div class="q-curve-foot" id="q-curve-foot">等待净值记录（每分钟一条）</div>
       </section>
 
       <section class="q-card">
-        <h2>策略信号</h2>
-        <div id="q-signal" class="q-dim">待接入（下一步接 D 盘策略输出）</div>
+        <h2>持仓</h2>
+        <div class="q-tablewrap">
+          <table><thead><tr><th>标的 / 方向</th><th>开仓时间</th><th>开仓价</th><th>数量</th><th>名义</th><th>止损 / 止盈</th><th>浮动盈亏</th></tr></thead>
+          <tbody id="q-pos"><tr><td colspan="7" class="q-dim">暂无持仓</td></tr></tbody></table>
+        </div>
       </section>
 
-      <p class="q-note">
-        行情来自 OKX 公开接口；账户数据由服务端签名获取，密钥不下发到浏览器。本页仅为数据展示，不构成投资建议。
-      </p>
+      <section class="q-card">
+        <h2>成交记录</h2>
+        <div class="q-tablewrap">
+          <table><thead><tr><th>标的 / 方向</th><th>开仓 → 平仓价</th><th>数量</th><th>手续费</th><th>净盈亏</th><th>平仓原因</th></tr></thead>
+          <tbody id="q-trades"><tr><td colspan="6" class="q-dim">暂无成交</td></tr></tbody></table>
+        </div>
+      </section>
+
+      <section class="q-card">
+        <h2>运行记录</h2>
+        <div id="q-events" class="q-events q-dim">等待事件</div>
+      </section>
+
+      <p class="q-note">模拟盘（PAPER），不发送真实订单。行情来自公开接口，账户接口由服务端签名，密钥不下发浏览器。本页仅供研究，不构成投资建议。</p>
     </div>
   </Main>
-
   <Footer />
 </Layout>
 
-<script define:vars={{ PUB: import.meta.env.PUBLIC_QUANT_API || "/api/okx", PRIV: import.meta.env.PUBLIC_QUANT_API || "/api/okx" }}>
-  const PAIRS = [{ id: "BTC-USDT", name: "BTC" }, { id: "ETH-USDT", name: "ETH" }];
-  const $ = (s) => document.querySelector(s);
-  const fmt = (n, d = 2) => Number(n).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+<script define:vars={{ API: import.meta.env.PUBLIC_QUANT_API || "" }}>
+  const el = (id) => document.getElementById(id);
+  const money = (v, signed) => (v == null || isNaN(v)) ? "—" : ((signed && v > 0 ? "+" : "") + Number(v).toFixed(2) + " U");
+  const pct = (v, d) => (v == null || isNaN(v)) ? "—" : (Number(v) * 100).toFixed(d == null ? 2 : d) + "%";
+  const num = (v, d) => (v == null || isNaN(v)) ? "—" : Number(v).toFixed(d == null ? 2 : d);
+  const px = (v) => (v == null || isNaN(v)) ? "—" : Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const t = (ms) => ms ? new Date(Number(ms)).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }) : "—";
+  const cls = (v) => v > 0 ? "q-up" : v < 0 ? "q-down" : "";
+  const NAME = { "BTC-USDT-SWAP": "BTC", "ETH-USDT-SWAP": "ETH" };
+  const evName = { OPEN: "开仓", CLOSE: "平仓" };
+  const rsName = { stop_loss: "止损", take_profit: "止盈", horizon_exit: "到期平仓", deepseek_close: "DeepSeek 平仓" };
 
-  async function jget(base, path) {
-    const r = await fetch(base + path, { cache: "no-store" });
-    const j = await r.json();
-    if (j.code !== "0") throw new Error(j.msg || ("code " + j.code));
-    return j.data;
+  async function get(path) {
+    const r = await fetch((API || "") + path, { cache: "no-store" });
+    return r.json();
   }
 
-  function card(x) {
-    const cls = x.chg >= 0 ? "q-up" : "q-down";
-    return '<div class="q-card"><h2>' + x.name + ' / USDT</h2>' +
-      '<div><span class="q-big">' + fmt(x.last) + '</span>' +
-      '<span class="q-chg ' + cls + '">' + (x.chg >= 0 ? "+" : "") + x.chg.toFixed(2) + '%</span></div>' +
-      '<div class="q-row"><span>24h 高</span><b>' + fmt(x.high) + '</b></div>' +
-      '<div class="q-row"><span>24h 低</span><b>' + fmt(x.low) + '</b></div>' +
-      '<div class="q-row"><span>24h 量</span><b>' + fmt(x.vol, 0) + '</b></div></div>';
+  function renderMarkets(s) {
+    const qs = {}; (s.quotes || []).forEach((q) => { qs[q.asset] = q; });
+    el("q-markets").innerHTML = (s.config.assets || []).map((a) => {
+      const q = qs[a] || {}, f = (s.factors || {})[a] || {};
+      return '<article class="q-card"><h2>' + (NAME[a] || a) + ' / USDT 永续</h2>' +
+        '<div class="q-price"><span class="q-big">' + px(q.last) + '</span><small>买 ' + px(q.bid) + ' / 卖 ' + px(q.ask) + '</small></div>' +
+        '<div class="q-row"><span>ret60</span><b>' + (f.ret60 == null ? "—" : pct(f.ret60)) + '</b></div>' +
+        '<div class="q-row"><span>ma60</span><b>' + (f.ma60 == null ? "—" : pct(f.ma60)) + '</b></div>' +
+        '<div class="q-row"><span>rsi14</span><b>' + num(f.rsi14, 1) + '</b></div>' +
+        '<div class="q-row"><span>vol15</span><b>' + num(f.vol15, 3) + '</b></div>' +
+        '<div class="q-row"><span>volTrend</span><b>' + num(f.volTrend, 2) + '</b></div>' +
+        '</article>';
+    }).join("");
   }
 
-  async function tick() {
+  function renderPositions(s) {
+    if (!s.positions || !s.positions.length) { el("q-pos").innerHTML = '<tr><td colspan="7" class="q-dim">暂无持仓</td></tr>'; return; }
+    el("q-pos").innerHTML = s.positions.map((p) => '<tr><td><b>' + (NAME[p.asset] || p.asset) + '</b> <span class="' + (p.side === "LONG" ? "q-up" : "q-down") + '">' + p.side + '</span></td>' +
+      '<td>' + t(p.openedAt) + '</td><td>' + px(p.entry) + '</td><td>' + num(p.qty, 5) + '</td><td>' + money(p.notional) + '</td>' +
+      '<td>' + pct(p.stopPct) + ' / ' + pct(p.targetPct) + '</td>' +
+      '<td class="' + cls(p.last_mark) + '">' + money(p.last_mark, true) + '</td></tr>').join("");
+  }
+
+  function renderTrades(s) {
+    if (!s.trades || !s.trades.length) { el("q-trades").innerHTML = '<tr><td colspan="6" class="q-dim">暂无成交</td></tr>'; return; }
+    el("q-trades").innerHTML = s.trades.map((x) => '<tr><td><b>' + (NAME[x.asset] || x.asset) + '</b> <span class="' + (x.side === "LONG" ? "q-up" : "q-down") + '">' + x.side + '</span></td>' +
+      '<td>' + px(x.entry) + ' → ' + px(x.exit) + '</td><td>' + num(x.qty, 5) + '</td><td>' + money(x.fee) + '</td>' +
+      '<td class="' + cls(x.net) + '">' + money(x.net, true) + '</td><td>' + (rsName[x.reason] || x.reason) + '</td></tr>').join("");
+  }
+
+  function renderEvents(s) {
+    if (!s.events || !s.events.length) { el("q-events").textContent = "等待事件"; return; }
+    el("q-events").innerHTML = s.events.slice(0, 12).map((e) =>
+      '<div class="q-ev"><small>' + t(e.ts) + ' · ' + (NAME[e.asset] || e.asset || "") + '</small> ' +
+      (evName[e.type] || e.type) + ' · ' + (rsName[e.reason] || e.reason) + '</div>').join("");
+  }
+
+  function renderState(s) {
+    const a = s.account || {}, c = s.config || {}, ad = s.advisor || {}, d = s.day || {};
+    el("q-dot").classList.add("q-on");
+    el("q-status").textContent = s.halt_reason === "daily_loss_limit" ? "已触发日止损 · 今日停止新仓" : (s.status === "RUNNING" ? "运行中" : s.status);
+    el("q-src").textContent = "数据源 " + (s.quoteSource || "—");
+    el("q-upd").textContent = "行情 " + t(a.last_success);
+    el("m-equity").textContent = money(a.equity); el("m-equity").className = "";
+    const net = el("m-net"); net.textContent = money(a.net_pnl, true); net.className = cls(a.net_pnl);
+    const real = el("m-real"); real.textContent = money(a.realized_pnl, true); real.className = cls(a.realized_pnl);
+    el("m-cash").textContent = money(a.available);
+    el("m-fees").textContent = money(a.fees_paid);
+    el("m-counts").textContent = (a.open_positions || 0) + " / " + (a.closed_trades || 0);
+    el("m-dd").textContent = pct(a.max_drawdown);
+    const dayLoss = d.loss || 0, limit = (d.limitU || c.dailyLossU || 5);
+    const day = el("m-day"); day.textContent = money(dayLoss, true); day.className = dayLoss > 0 ? "q-down" : "";
+    el("q-risk-fill").style.width = Math.min(100, Math.max(0, dayLoss / limit * 100)) + "%";
+    el("q-risk-text").textContent = "日止损上限 " + money(limit) + "（已用 " + (dayLoss / limit * 100).toFixed(0) + "%）";
+    el("d-action").textContent = ad.lastAction || "—";
+    el("d-conf").textContent = ad.byAsset && Object.values(ad.byAsset)[0] ? pct(Object.values(ad.byAsset)[0].confidence, 1) : "—";
+    el("d-calls").textContent = (ad.calls || 0) + " / " + (ad.skipped || 0);
+    el("d-tokens").textContent = (ad.tokens || 0).toLocaleString();
+    el("d-reason").textContent = ad.lastReason ? "理由：" + ad.lastReason : "—";
+    renderMarkets(s); renderPositions(s); renderTrades(s); renderEvents(s);
+  }
+
+  function drawCurve(points) {
+    if (!points || !points.length) { el("q-curve").innerHTML = ""; el("q-curve-foot").textContent = "等待净值记录（每分钟一条）"; return; }
+    const vs = points.map((p) => p.equity);
+    let lo = Math.min.apply(null, vs), hi = Math.max.apply(null, vs);
+    const pad = Math.max((hi - lo) * 0.1, 0.05); lo -= pad; hi += pad;
+    const X = (i) => points.length === 1 ? 500 : i / (points.length - 1) * 1000;
+    const Y = (v) => 150 - (v - lo) / (hi - lo) * 130;
+    const d = points.map((p, i) => (i ? "L" : "M") + " " + X(i).toFixed(1) + " " + Y(p.equity).toFixed(1)).join(" ");
+    el("q-curve").innerHTML = '<svg viewBox="0 0 1000 160" preserveAspectRatio="none" role="img" aria-label="模拟账户净值曲线"><path d="' + d + '" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>';
+    el("q-curve-foot").textContent = points.length + " 个净值点 · 最低 " + money(lo + pad) + " / 最高 " + money(hi - pad) + " / 最新 " + money(vs[vs.length - 1]);
+  }
+
+  async function refresh() {
     try {
-      const rows = [];
-      for (const p of PAIRS) {
-        const d = await jget(PUB, "/v5/market/ticker?instId=" + p.id);
-        const t = d[0];
-        const last = parseFloat(t.last), open = parseFloat(t.open24h);
-        rows.push({ ...p, last, chg: (last - open) / open * 100, high: parseFloat(t.high24h), low: parseFloat(t.low24h), vol: parseFloat(t.vol24h) });
-      }
-      $("#q-tickers").innerHTML = rows.map(card).join("");
-      $("#q-dot").classList.add("q-on");
-      $("#q-status-text").textContent = "已连接";
-      $("#q-updated").textContent = new Date().toLocaleTimeString("zh-CN", { hour12: false });
-      $("#q-chart-err").textContent = "";
+      const s = await get("/api/state");
+      if (s && s.ok) renderState(s);
+      else throw new Error("state");
     } catch (e) {
-      $("#q-dot").classList.remove("q-on");
-      $("#q-status-text").textContent = "断开";
-      $("#q-chart-err").textContent = "行情获取失败：" + e.message;
+      el("q-dot").classList.remove("q-on");
+      el("q-status").textContent = "后端暂不可用";
     }
   }
-
-  async function series() {
-    try {
-      const out = {};
-      for (const p of PAIRS) {
-        const d = await jget(PUB, "/v5/market/candles?instId=" + p.id + "&bar=1H&limit=120");
-        out[p.name] = d.map((r) => ({ c: parseFloat(r[4]) })).reverse();
-      }
-      draw(out);
-    } catch (e) { $("#q-chart-err").textContent = "K线获取失败：" + e.message; }
+  async function refreshCurve() {
+    try { const d = await get("/api/equity"); if (d && d.ok) drawCurve(d.equity || []); } catch (e) {}
   }
-
-  function draw(series) {
-    const cv = $("#q-chart"); if (!cv) return;
-    const dark = document.documentElement.classList.contains("dark");
-    const grid = dark ? "#3a3d44" : "#e5e1da";
-    const dpr = window.devicePixelRatio || 1;
-    const w = cv.clientWidth, h = cv.clientHeight;
-    cv.width = w * dpr; cv.height = h * dpr;
-    const g = cv.getContext("2d"); g.scale(dpr, dpr); g.clearRect(0, 0, w, h);
-    const colors = { BTC: "#f7931a", ETH: dark ? "#9aa8ff" : "#4f6ef7" };
-    const pad = { l: 10, r: 10, t: 14, b: 22 };
-    let min = Infinity, max = -Infinity;
-    for (const k in series) for (const p of series[k]) { min = Math.min(min, p.c); max = Math.max(max, p.c); }
-    if (!isFinite(min)) return;
-    const span = (max - min) || 1; min -= span * 0.05; max += span * 0.05;
-    const n = (series.BTC && series.BTC.length) || 1;
-    const X = (i) => pad.l + (w - pad.l - pad.r) * i / Math.max(1, n - 1);
-    const Y = (v) => pad.t + (h - pad.t - pad.b) * (1 - (v - min) / (max - min));
-    g.strokeStyle = grid; g.lineWidth = 1;
-    for (let i = 0; i <= 4; i++) { const y = pad.t + (h - pad.t - pad.b) * i / 4; g.beginPath(); g.moveTo(pad.l, y); g.lineTo(w - pad.r, y); g.stroke(); }
-    for (const k in series) {
-      const s = series[k]; if (!s || !s.length) continue;
-      g.strokeStyle = colors[k]; g.lineWidth = 1.6; g.beginPath();
-      s.forEach((pt, i) => { i ? g.lineTo(X(i), Y(pt.c)) : g.moveTo(X(i), Y(pt.c)); });
-      g.stroke();
-    }
-  }
-
-  async function account() {
-    const el = $("#q-acct");
-    try {
-      const b = await jget(PRIV, "/v5/account/balance");
-      const d = (b && b[0]) || {};
-      const usdt = (d.details || []).find((x) => x.ccy === "USDT") || {};
-      let html = '<div><span class="q-big">$' + fmt(d.totalEq || 0) + '</span><span class="q-dim q-indent">总权益 (USD)</span></div>' +
-        '<div class="q-row"><span>USDT 可用</span><b>' + fmt(usdt.availBal || 0) + '</b></div>' +
-        '<div class="q-row"><span>USDT 冻结</span><b>' + fmt(usdt.frozenBal || 0) + '</b></div>';
-      try {
-        const pos = await jget(PRIV, "/v5/account/positions");
-        if (pos && pos.length) {
-          html += '<div class="q-row q-head"><span>持仓</span><span>方向 / 数量 / 未实现盈亏</span></div>';
-          for (const x of pos) {
-            const pnl = parseFloat(x.upl || 0);
-            html += '<div class="q-row"><span>' + x.instId + '</span><b class="' + (pnl >= 0 ? "q-up" : "q-down") + '">' +
-              (x.posSide || "net") + ' / ' + x.pos + ' / ' + (pnl >= 0 ? "+" : "") + pnl.toFixed(2) + '</b></div>';
-          }
-        } else {
-          html += '<div class="q-row"><span>持仓</span><b>无</b></div>';
-        }
-      } catch (e) {}
-      el.innerHTML = html;
-    } catch (e) {
-      el.textContent = "账户读取失败：" + e.message;
-    }
-  }
-
-  tick(); series(); account();
-  setInterval(tick, 5000);
-  setInterval(series, 60000);
-  setInterval(account, 30000);
-  window.addEventListener("resize", () => series());
+  refresh(); refreshCurve();
+  setInterval(refresh, 10000);
+  setInterval(refreshCurve, 60000);
 </script>
 
 <style>
   .q-wrap { display: flex; flex-direction: column; gap: 14px; }
   .q-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted-foreground); }
   .q-dot { width: 8px; height: 8px; border-radius: 50%; background: #9ca3af; display: inline-block; }
-  .q-dot.q-on { background: #16a34a; box-shadow: 0 0 8px rgba(22, 163, 74, 0.6); }
+  .q-dot.q-on { background: #16a34a; box-shadow: 0 0 8px rgba(22,163,74,.6); }
   .q-tag { border: 1px solid var(--border); border-radius: 999px; padding: 1px 9px; font-size: 11px; color: var(--muted-foreground); }
-  .q-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
   .q-card { border: 1px solid var(--border); border-radius: 10px; padding: 14px; background: var(--muted); }
-  .q-card h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-foreground); font-weight: 600; }
-  .q-big { font-size: 24px; font-weight: 600; color: var(--foreground); }
-  .q-chg { font-size: 12px; margin-left: 8px; }
-  .q-indent { margin-left: 10px; }
-  .q-up { color: #16a34a; }
-  .q-down { color: #dc2626; }
+  .q-card h2 { margin: 0 0 10px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted-foreground); font-weight: 600; }
+  .q-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+  .q-grid .q-card { background: var(--muted); }
+  .q-metrics { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
+  .q-metrics div { display: flex; flex-direction: column; gap: 2px; }
+  .q-metrics span { font-size: 11px; color: var(--muted-foreground); }
+  .q-metrics strong { font-size: 16px; color: var(--foreground); font-weight: 600; }
+  .q-big { font-size: 22px; font-weight: 600; color: var(--foreground); }
+  .q-price { display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px; }
+  .q-price small { color: var(--muted-foreground); font-size: 11px; }
   .q-row { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; padding: 3px 0; color: var(--muted-foreground); }
   .q-row b { color: var(--foreground); font-weight: 500; }
-  .q-head { border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+  .q-up { color: #16a34a; } .q-down { color: #dc2626; }
+  .q-decision { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+  .q-decision div { display: flex; flex-direction: column; gap: 2px; }
+  .q-decision span { font-size: 11px; color: var(--muted-foreground); }
+  .q-decision strong { font-size: 15px; color: var(--foreground); }
+  .q-reason { font-size: 12px; color: var(--muted-foreground); margin: 10px 0 6px; }
+  .q-risk { margin-top: 12px; }
+  .q-risk-bar { height: 6px; border-radius: 999px; background: var(--border); overflow: hidden; }
+  .q-risk-bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+  .q-risk small { display: block; margin-top: 4px; font-size: 11px; color: var(--muted-foreground); }
+  .q-curve svg { width: 100%; height: 160px; display: block; }
+  .q-curve-foot { font-size: 11px; color: var(--muted-foreground); margin-top: 6px; }
+  .q-tablewrap { overflow-x: auto; }
+  .q-tablewrap table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .q-tablewrap th { text-align: left; font-weight: 600; color: var(--muted-foreground); padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .q-tablewrap td { padding: 6px 8px; border-bottom: 1px solid var(--border); color: var(--foreground); white-space: nowrap; }
   .q-dim { color: var(--muted-foreground); font-size: 12px; }
-  .q-err { color: #dc2626; font-size: 11px; min-height: 14px; }
+  .q-events { font-size: 12px; line-height: 1.7; }
+  .q-ev { color: var(--foreground); }
+  .q-ev small { color: var(--muted-foreground); }
   .q-note { font-size: 11px; color: var(--muted-foreground); }
-  #q-chart { width: 100%; height: 220px; display: block; }
   :global(.dark) .q-up { color: #4ade80; }
   :global(.dark) .q-down { color: #f87171; }
-  :global(.dark) .q-err { color: #f87171; }
 </style>
