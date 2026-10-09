@@ -119,7 +119,7 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
     return r.json();
   }
 
-  function spark(points, w, h) {
+  function spark(points, h) {
     if (!points || points.length < 3) return '<div class="q-spark-empty">价格线积累中（每分钟一点，约 1 小时后成形）</div>';
     const vs = points.map((p) => p.p);
     let lo = Math.min.apply(null, vs), hi = Math.max.apply(null, vs);
