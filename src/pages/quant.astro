@@ -64,6 +64,7 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
           <div><span>累计 Token</span><strong id="d-tokens">—</strong></div>
         </div>
         <p class="q-reason" id="d-reason">—</p>
+        <div class="q-tablewrap"><table><thead><tr><th>标的</th><th>最近判断</th><th>置信度</th><th>理由</th><th>时间</th></tr></thead><tbody id="d-perasset"><tr><td colspan="5" class="q-dim">暂无</td></tr></tbody></table></div>
         <p class="q-note">风控（止损 / 止盈 / 到期 / 日止损）由代码执行，不消耗 token；DeepSeek 仅在价格或因子触发时被调用。</p>
       </section>
 
@@ -137,18 +138,28 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
   }
 
   function renderMarkets(s) {
-    const qs = {}; (s.quotes || []).forEach((q) => { qs[q.asset] = q; });
     const hist = s.priceHist || {};
-    el("q-markets").innerHTML = (s.config.assets || []).map((a) => {
-      const q = qs[a] || {}, f = (s.factors || {})[a] || {};
-      const hp = hist[a] || [];
+    const sig = s.signals || [];
+    el("q-markets").innerHTML = sig.map((g) => {
+      const hp = hist[g.asset] || [];
       const first = hp.length ? hp[0].p : null, last = hp.length ? hp[hp.length - 1].p : null;
       const chg = (first && last) ? (last / first - 1) : null;
-      return '<article class="q-card"><div class="q-mtitle"><h2>' + (NAME[a] || a) + ' / USDT 永续</h2><span class="' + cls(chg) + '">' + (chg == null ? "—" : (chg > 0 ? "+" : "") + pct(chg)) + '</span></div>' +
-        '<div class="q-price"><span class="q-big">' + px(q.last) + '</span><small>买 ' + px(q.bid) + ' / 卖 ' + px(q.ask) + '</small></div>' +
-        spark(hp, 130) +
-        '<div class="q-row"><span>rsi14</span><b class="' + (f.rsi14 > 70 ? "q-down" : f.rsi14 < 30 ? "q-up" : "") + '">' + num(f.rsi14, 1) + '</b></div>' +
-        '<div class="q-row"><span>ret60</span><b>' + (f.ret60 == null ? "—" : pct(f.ret60)) + '</b></div>' +
+      const spread = (g.bid && g.ask) ? (g.ask - g.bid) / ((g.ask + g.bid) / 2) : null;
+      const pos = (s.positions || []).filter((x) => x.asset === g.asset);
+      const amount = pos.length ? pos.reduce((n, x) => n + (x.notional || 0), 0) : null;
+      const act = g.action || "—";
+      const actCls = act.indexOf("LONG") >= 0 ? "q-up" : act.indexOf("SHORT") >= 0 ? "q-down" : "";
+      return '<article class="q-card">' +
+        '<div class="q-mtitle"><h2>' + (NAME[g.asset] || g.asset) + ' / USDT 永续</h2><span class="' + cls(chg) + '">' + (chg == null ? "—" : (chg > 0 ? "+" : "") + pct(chg)) + '</span></div>' +
+        '<div class="q-price"><span class="q-big">' + px(g.last) + '</span><small>买 ' + px(g.bid) + ' / 卖 ' + px(g.ask) + '</small></div>' +
+        spark(hp, 120) +
+        '<div class="q-row"><span>DeepSeek 判断 · 自评置信度</span><b class="' + actCls + '">' + act + (g.confidence != null ? ' · ' + pct(g.confidence, 1) : '') + '</b></div>' +
+        '<div class="q-row"><span>' + (pos.length ? "当前持仓金额" : "上次指令金额") + '</span><b>' + (amount != null ? money(amount) : "—") + '</b></div>' +
+        '<div class="q-row"><span>止损 / 止盈</span><b>' + pct(s.config.stopPct) + ' / ' + pct(s.config.targetPct) + '</b></div>' +
+        '<div class="q-row"><span>盘口不平衡 / 价差</span><b>' + (g.imbalance == null ? "—" : pct(g.imbalance, 1)) + ' / ' + (spread == null ? "—" : pct(spread, 3)) + '</b></div>' +
+        '<div class="q-row"><span>资金费率 / 结算</span><b>' + (g.fundingRate == null ? "—" : pct(g.fundingRate, 4)) + ' / ' + t(g.fundingAt) + '</b></div>' +
+        '<div class="q-row"><span>rsi14 / ret60</span><b>' + num(g.rsi14, 1) + ' / ' + (g.ret60 == null ? "—" : pct(g.ret60)) + '</b></div>' +
+        '<div class="q-decision-note">' + (g.reason || "等待决策") + (g.at ? ' · ' + t(g.at) : '') + '</div>' +
         '</article>';
     }).join("");
   }
@@ -232,6 +243,8 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
     el("d-calls").textContent = (ad.calls || 0) + " / " + (ad.skipped || 0);
     el("d-tokens").textContent = (ad.tokens || 0).toLocaleString();
     el("d-reason").textContent = ad.lastReason ? "理由：" + ad.lastReason : "—";
+    const sig = s.signals || [];
+    el("d-perasset").innerHTML = sig.map((g) => '<tr><td><b>' + (NAME[g.asset] || g.asset) + '</b></td><td>' + (g.action || "—") + '</td><td>' + (g.confidence != null ? pct(g.confidence, 1) : "—") + '</td><td class="q-dim">' + (g.reason || "—") + '</td><td class="q-dim">' + t(g.at) + '</td></tr>').join("") || '<tr><td colspan="5" class="q-dim">暂无</td></tr>';
     renderMarkets(s); renderFactors(s); renderPositions(s); renderTrades(s); renderEvents(s);
   }
 
@@ -309,6 +322,7 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
   .q-ev { color: var(--foreground); }
   .q-ev small { color: var(--muted-foreground); }
   .q-note { font-size: 11px; color: var(--muted-foreground); margin-top: 8px; }
+  .q-decision-note { font-size: 11px; color: var(--muted-foreground); margin-top: 8px; line-height: 1.5; border-top: 1px dashed var(--border); padding-top: 6px; }
   :global(.dark) .q-up { color: #4ade80; }
   :global(.dark) .q-down { color: #f87171; }
 </style>
