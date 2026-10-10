@@ -36,7 +36,7 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
           <div><span>杠杆</span><strong id="m-lev">—</strong></div>
           <div><span id="l-counts">持仓 / 平仓</span><strong id="m-counts">—</strong></div>
           <div><span>最大回撤</span><strong id="m-dd">—</strong></div>
-          <div><span>今日亏损</span><strong id="m-day">—</strong></div>
+          <div><span>今日盈亏</span><strong id="m-day">—</strong></div>
         </div>
         <div class="q-risk">
           <div class="q-risk-bar"><i id="q-risk-fill"></i></div>
@@ -234,9 +234,10 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
     }
     el("m-dd").textContent = pct(a.max_drawdown);
     const dayLoss = d.loss || 0, limit = (d.limitU || c.dailyLossU || 5);
-    const day = el("m-day"); day.textContent = money(dayLoss, true); day.className = dayLoss > 0 ? "q-down" : "";
+    const pnlToday = -dayLoss;
+    const day = el("m-day"); day.textContent = money(pnlToday, true); day.className = cls(pnlToday);
     el("q-risk-fill").style.width = Math.min(100, Math.max(0, dayLoss / limit * 100)) + "%";
-    el("q-risk-text").textContent = "日止损上限 " + money(limit) + "（已用 " + (dayLoss / limit * 100).toFixed(0) + "%）";
+    el("q-risk-text").textContent = "日止损上限 " + money(limit) + "（已用 " + Math.max(0, dayLoss / limit * 100).toFixed(0) + "%）";
     el("d-action").textContent = ad.lastAction || "—";
     const first = ad.byAsset && Object.keys(ad.byAsset)[0] ? ad.byAsset[Object.keys(ad.byAsset)[0]] : null;
     el("d-conf").textContent = first && first.confidence != null ? pct(first.confidence, 1) : "—";
