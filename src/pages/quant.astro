@@ -47,25 +47,23 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
       <div class="q-grid" id="q-markets"></div>
 
       <section class="q-card">
-        <h2>因子面板</h2>
+        <h2>趋势面板 · 200 日均线（只做多）</h2>
         <div class="q-tablewrap">
-          <table><thead><tr><th>因子</th><th>含义</th><th>BTC</th><th>ETH</th></tr></thead>
-          <tbody id="q-factors"><tr><td colspan="4" class="q-dim">等待因子</td></tr></tbody></table>
+          <table><thead><tr><th>品种</th><th>最新价</th><th>MA200</th><th>距均线</th><th>状态</th></tr></thead>
+          <tbody id="q-factors"><tr><td colspan="5" class="q-dim">等待信号</td></tr></tbody></table>
         </div>
-        <p class="q-note" id="q-factor-note">15 分钟级别经验：动量因子（ret*/ma*）与未来收益负相关，即偏向均值回归。</p>
+        <p class="q-note" id="q-factor-note">规则：价格在 200 日均线上方 → 持多；跌破 → 离场。按距均线强度排序，最多持 4 个品种，单笔 25% 净值。</p>
       </section>
 
       <section class="q-card">
-        <h2>DeepSeek 决策</h2>
+        <h2>策略状态</h2>
         <div class="q-decision">
-          <div><span>最近动作</span><strong id="d-action">—</strong></div>
-          <div><span>置信度</span><strong id="d-conf">—</strong></div>
-          <div><span>调用 / 跳过</span><strong id="d-calls">—</strong></div>
-          <div><span>累计 Token</span><strong id="d-tokens">—</strong></div>
+          <div><span>策略</span><strong id="d-action">—</strong></div>
+          <div><span>均线上方品种</span><strong id="d-conf">—</strong></div>
+          <div><span>持仓 / 上限</span><strong id="d-calls">—</strong></div>
+          <div><span>今日盈亏 / 日止损</span><strong id="d-tokens">—</strong></div>
         </div>
-        <p class="q-reason" id="d-reason">—</p>
-        <div class="q-tablewrap"><table><thead><tr><th>标的</th><th>最近判断</th><th>置信度</th><th>理由</th><th>时间</th></tr></thead><tbody id="d-perasset"><tr><td colspan="5" class="q-dim">暂无</td></tr></tbody></table></div>
-        <p class="q-note">风控（止损 / 止盈 / 到期 / 日止损）由代码执行，不消耗 token；DeepSeek 仅在价格或因子触发时被调用。</p>
+        <p class="q-note">纯规则策略，不调用 LLM（0 token）。风控：止损 5% / 日亏 5 USDT / 总回撤 15% 熔断，全部由代码执行。</p>
       </section>
 
       <section class="q-card">
@@ -109,7 +107,8 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
   const px = (v) => (v == null || isNaN(v)) ? "—" : Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const t = (ms) => ms ? new Date(Number(ms)).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }) : "—";
   const cls = (v) => v > 0 ? "q-up" : v < 0 ? "q-down" : "";
-  const NAME = { "BTC-USDT-SWAP": "BTC", "ETH-USDT-SWAP": "ETH" };
+  const NAME = { "SPY-USDT-SWAP": "SPY 标普500", "QQQ-USDT-SWAP": "QQQ 纳指100", "NVDA-USDT-SWAP": "NVDA 英伟达",
+    "AAPL-USDT-SWAP": "AAPL 苹果", "MSFT-USDT-SWAP": "MSFT 微软", "META-USDT-SWAP": "META", "AMZN-USDT-SWAP": "AMZN 亚马逊", "TSLA-USDT-SWAP": "TSLA 特斯拉" };
   const evName = { OPEN: "开仓", CLOSE: "平仓" };
   const rsName = { stop_loss: "止损", take_profit: "止盈", horizon_exit: "到期平仓", deepseek_close: "DeepSeek 平仓", hold: "观望" };
   const FACTORS = [
@@ -149,38 +148,37 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
       const amount = pos.length ? pos.reduce((n, x) => n + (x.notional || 0), 0) : null;
       const act = g.action || "—";
       const actCls = act.indexOf("LONG") >= 0 ? "q-up" : act.indexOf("SHORT") >= 0 ? "q-down" : "";
+      const dist = (g.ma200 && g.last) ? (g.last / g.ma200 - 1) : null;
       return '<article class="q-card">' +
         '<div class="q-mtitle"><h2>' + (NAME[g.asset] || g.asset) + ' / USDT 永续</h2><span class="' + cls(chg) + '">' + (chg == null ? "—" : (chg > 0 ? "+" : "") + pct(chg)) + '</span></div>' +
         '<div class="q-price"><span class="q-big">' + px(g.last) + '</span><small>买 ' + px(g.bid) + ' / 卖 ' + px(g.ask) + '</small></div>' +
         spark(hp, 120) +
-        '<div class="q-row"><span>DeepSeek 判断 · 自评置信度</span><b class="' + actCls + '">' + act + (g.confidence != null ? ' · ' + pct(g.confidence, 1) : '') + '</b></div>' +
-        '<div class="q-row"><span>' + (pos.length ? "当前持仓金额" : "上次指令金额") + '</span><b>' + (amount != null ? money(amount) : "—") + '</b></div>' +
-        '<div class="q-row"><span>止损 / 止盈</span><b>' + pct(s.config.stopPct) + ' / ' + pct(s.config.targetPct) + '</b></div>' +
-        '<div class="q-row"><span>盘口不平衡 / 价差</span><b>' + (g.imbalance == null ? "—" : pct(g.imbalance, 1)) + ' / ' + (spread == null ? "—" : pct(spread, 3)) + '</b></div>' +
-        '<div class="q-row"><span>资金费率 / 结算</span><b>' + (g.fundingRate == null ? "—" : pct(g.fundingRate, 4)) + ' / ' + t(g.fundingAt) + '</b></div>' +
-        '<div class="q-row"><span>rsi14 / ret60</span><b>' + num(g.rsi14, 1) + ' / ' + (g.ret60 == null ? "—" : pct(g.ret60)) + '</b></div>' +
-        '<div class="q-decision-note">' + (g.reason || "等待决策") + (g.at ? ' · ' + t(g.at) : '') + '</div>' +
+        '<div class="q-row"><span>趋势信号</span><b class="' + (g.aboveMA ? "q-up" : "q-down") + '">' + (g.aboveMA == null ? "无数据" : (g.aboveMA ? "MA200 上方 · 持多" : "MA200 下方 · 离场")) + '</b></div>' +
+        '<div class="q-row"><span>MA200</span><b>' + (g.ma200 == null ? "—" : px(g.ma200)) + '</b></div>' +
+        '<div class="q-row"><span>距均线</span><b class="' + cls(dist) + '">' + (dist == null ? "—" : (dist > 0 ? "+" : "") + pct(dist)) + '</b></div>' +
+        '<div class="q-row"><span>当前持仓金额</span><b>' + (amount != null ? money(amount) : "—") + '</b></div>' +
+        '<div class="q-row"><span>止损</span><b>' + pct(s.config.stopPct) + '</b></div>' +
+        '<div class="q-row"><span>买卖点差</span><b>' + (spread == null ? "—" : pct(spread, 3)) + '</b></div>' +
+        '<div class="q-decision-note">' + (g.aboveMA ? "趋势向上，按强度排序纳入持仓" : "未达条件，观望") + '</div>' +
         '</article>';
     }).join("");
   }
 
   function renderFactors(s) {
-    const fa = s.factors || {};
-    const assets = s.config.assets || [];
-    el("q-factors").innerHTML = FACTORS.map((row) => {
-      const f = row[0];
-      const cells = assets.map((a) => {
-        const v = (fa[a] || {})[f];
-        if (v == null) return '<td class="q-dim">—</td>';
-        if (f === "rsi14") {
-          const c = v > 70 ? "q-down" : v < 30 ? "q-up" : "";
-          return '<td class="' + c + '">' + Number(v).toFixed(1) + '</td>';
-        }
-        const c = v > 0 ? "q-up" : v < 0 ? "q-down" : "";
-        return '<td class="' + c + '">' + (f.indexOf("vol") === 0 ? Number(v).toFixed(3) : Number(v).toFixed(4)) + '</td>';
-      }).join("");
-      return '<tr><td><b>' + f + '</b></td><td class="q-dim">' + row[1] + '</td>' + cells + '</tr>';
-    }).join("") || '<tr><td colspan="4" class="q-dim">等待因子</td></tr>';
+    const sig = (s.signals || []).slice().sort((x, y) => {
+      const ax = (x.ma200 && x.last) ? x.last / x.ma200 : -9, ay = (y.ma200 && y.last) ? y.last / y.ma200 : -9;
+      return ay - ax;
+    });
+    el("q-factors").innerHTML = sig.map((g) => {
+      const d = (g.ma200 && g.last) ? (g.last / g.ma200 - 1) : null;
+      const held = (s.positions || []).some((x) => x.asset === g.asset);
+      const st = held ? "持仓中" : (g.aboveMA === true ? "候选" : (g.aboveMA === false ? "观望" : "无数据"));
+      const stCls = held ? "q-up" : (g.aboveMA === true ? "" : "q-dim");
+      return '<tr><td><b>' + (NAME[g.asset] || g.asset) + '</b></td>' +
+        '<td>' + px(g.last) + '</td><td>' + (g.ma200 == null ? "—" : px(g.ma200)) + '</td>' +
+        '<td class="' + cls(d) + '">' + (d == null ? "—" : (d > 0 ? "+" : "") + pct(d)) + '</td>' +
+        '<td class="' + stCls + '">' + st + '</td></tr>';
+    }).join("") || '<tr><td colspan="5" class="q-dim">等待信号</td></tr>';
   }
 
   function renderPositions(s) {
@@ -238,14 +236,12 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
     const day = el("m-day"); day.textContent = money(pnlToday, true); day.className = cls(pnlToday);
     el("q-risk-fill").style.width = Math.min(100, Math.max(0, dayLoss / limit * 100)) + "%";
     el("q-risk-text").textContent = "日止损上限 " + money(limit) + "（已用 " + Math.max(0, dayLoss / limit * 100).toFixed(0) + "%）";
-    el("d-action").textContent = ad.lastAction || "—";
-    const first = ad.byAsset && Object.keys(ad.byAsset)[0] ? ad.byAsset[Object.keys(ad.byAsset)[0]] : null;
-    el("d-conf").textContent = first && first.confidence != null ? pct(first.confidence, 1) : "—";
-    el("d-calls").textContent = (ad.calls || 0) + " / " + (ad.skipped || 0);
-    el("d-tokens").textContent = (ad.tokens || 0).toLocaleString();
-    el("d-reason").textContent = ad.lastReason ? "理由：" + ad.lastReason : "—";
-    const sig = s.signals || [];
-    el("d-perasset").innerHTML = sig.map((g) => '<tr><td><b>' + (NAME[g.asset] || g.asset) + '</b></td><td>' + (g.action || "—") + '</td><td>' + (g.confidence != null ? pct(g.confidence, 1) : "—") + '</td><td class="q-dim">' + (g.reason || "—") + '</td><td class="q-dim">' + t(g.at) + '</td></tr>').join("") || '<tr><td colspan="5" class="q-dim">暂无</td></tr>';
+    const sigAll = s.signals || [];
+    const aboveN = sigAll.filter((g) => g.aboveMA === true).length;
+    el("d-action").textContent = (sigAll[0] && sigAll[0].strategy) ? (sigAll[0].strategy === "trend" ? "趋势 · MA200 · 只做多" : sigAll[0].strategy) : "趋势 · MA200";
+    el("d-conf").textContent = aboveN + " / " + sigAll.length;
+    el("d-calls").textContent = (a.open_positions || 0) + " / " + ((c.maxPositions) || 4);
+    el("d-tokens").textContent = money(pnlToday) + " / " + money(limit);
     renderMarkets(s); renderFactors(s); renderPositions(s); renderTrades(s); renderEvents(s);
   }
 
