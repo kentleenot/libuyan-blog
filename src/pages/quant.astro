@@ -56,6 +56,11 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
       </section>
 
       <section class="q-card">
+        <h2>AI 自选因子（每 6 小时自我复盘）</h2>
+        <div id="q-factor-set" class="q-dim">等待 AI 选择…</div>
+      </section>
+
+      <section class="q-card">
         <h2>策略状态</h2>
         <div class="q-decision">
           <div><span>策略</span><strong id="d-action">—</strong></div>
@@ -157,7 +162,7 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
         '<div class="q-row"><span>MA200</span><b>' + (g.ma200 == null ? "—" : px(g.ma200)) + '</b></div>' +
         '<div class="q-row"><span>距均线</span><b class="' + cls(dist) + '">' + (dist == null ? "—" : (dist > 0 ? "+" : "") + pct(dist)) + '</b></div>' +
         '<div class="q-row"><span>当前持仓金额</span><b>' + (amount != null ? money(amount) : "—") + '</b></div>' +
-        '<div class="q-row"><span>止损</span><b>' + pct(s.config.stopPct) + '</b></div>' +
+        '<div class="q-row"><span>止损 / 止盈（AI 设定）</span><b>' + ((s.levels && s.levels[g.asset]) ? (pct(s.levels[g.asset].stop) + ' / ' + pct(s.levels[g.asset].target)) : "—") + '</b></div>' +
         '<div class="q-row"><span>买卖点差</span><b>' + (spread == null ? "—" : pct(spread, 3)) + '</b></div>' +
         '<div class="q-decision-note">' + (g.aboveMA ? "趋势向上，按强度排序纳入持仓" : "未达条件，观望") + '</div>' +
         '</article>';
@@ -236,6 +241,10 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
     const day = el("m-day"); day.textContent = money(pnlToday, true); day.className = cls(pnlToday);
     el("q-risk-fill").style.width = Math.min(100, Math.max(0, dayLoss / limit * 100)) + "%";
     el("q-risk-text").textContent = "日止损上限 " + money(limit) + "（已用 " + Math.max(0, dayLoss / limit * 100).toFixed(0) + "%）";
+    const fs = s.factorSet;
+    el("q-factor-set").innerHTML = (fs && fs.picks && fs.picks.length)
+      ? '<b>' + fs.picks.join(" · ") + '</b>' + (fs.note ? '<div class="q-decision-note">' + fs.note + ' · ' + t(fs.at) + '</div>' : '')
+      : '等待 AI 首次选择（约 6 小时内生成）——AI 会从 54 个指标里挑出当前最有效的，并在后续判断中重点参考。';
     const sigAll = s.signals || [];
     const aboveN = sigAll.filter((g) => g.aboveMA === true).length;
     el("d-action").textContent = (sigAll[0] && sigAll[0].strategy) ? (sigAll[0].strategy === "trend" ? "趋势 · MA200 · 只做多" : sigAll[0].strategy) : "趋势 · MA200";
