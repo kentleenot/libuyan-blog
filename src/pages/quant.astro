@@ -68,7 +68,19 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
           <div><span>持仓 / 上限</span><strong id="d-calls">—</strong></div>
           <div><span>今日盈亏 / 日止损</span><strong id="d-tokens">—</strong></div>
         </div>
-        <p class="q-note">纯规则策略，不调用 LLM（0 token）。风控：止损 5% / 日亏 5 USDT / 总回撤 15% 熔断，全部由代码执行。</p>
+        <p class="q-note">DeepSeek 直接判断（每 5/10 分钟一次，8 个品种一次问完）；止盈止损由 AI 逐仓设定。</p>
+      </section>
+
+      <section class="q-card">
+        <h2>模型状态</h2>
+        <div class="q-decision">
+          <div><span>决策依据</span><strong>AI + 54 指标</strong></div>
+          <div><span>决策频率</span><strong>持仓 5 分钟 / 空仓 10 分钟</strong></div>
+          <div><span>累计调用 / Token</span><strong id="m-calls">—</strong></div>
+          <div><span>总敞口 / 杠杆</span><strong id="m-exp">—</strong></div>
+          <div><span>账户风控</span><strong id="m-risk">—</strong></div>
+          <div><span>AI 自选因子</span><strong id="m-fs">—</strong></div>
+        </div>
       </section>
 
       <section class="q-card">
@@ -159,6 +171,7 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
         '<div class="q-price"><span class="q-big">' + px(g.last) + '</span><small>买 ' + px(g.bid) + ' / 卖 ' + px(g.ask) + '</small></div>' +
         spark(hp, 120) +
         '<div class="q-row"><span>趋势信号</span><b class="' + (g.aboveMA ? "q-up" : "q-down") + '">' + (g.aboveMA == null ? "无数据" : (g.aboveMA ? "MA200 上方 · 持多" : "MA200 下方 · 离场")) + '</b></div>' +
+        '<div class="q-row"><span>AI 上次判断</span><b>' + (g.action ? (g.action + (g.confidence != null ? ' · ' + pct(g.confidence, 1) : '')) : '—') + (g.reason ? ' <small>' + g.reason + '</small>' : '') + '</b></div>' +
         '<div class="q-row"><span>MA200</span><b>' + (g.ma200 == null ? "—" : px(g.ma200)) + '</b></div>' +
         '<div class="q-row"><span>距均线</span><b class="' + cls(dist) + '">' + (dist == null ? "—" : (dist > 0 ? "+" : "") + pct(dist)) + '</b></div>' +
         '<div class="q-row"><span>当前持仓金额</span><b>' + (amount != null ? money(amount) : "—") + '</b></div>' +
@@ -241,6 +254,10 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
     const day = el("m-day"); day.textContent = money(pnlToday, true); day.className = cls(pnlToday);
     el("q-risk-fill").style.width = Math.min(100, Math.max(0, dayLoss / limit * 100)) + "%";
     el("q-risk-text").textContent = "日止损上限 " + money(limit) + "（已用 " + Math.max(0, dayLoss / limit * 100).toFixed(0) + "%）";
+    el("m-calls").textContent = (ad.calls || 0) + " 次 / " + ((ad.tokens || 0).toLocaleString()) + " tok";
+    el("m-exp").textContent = money(a.gross_exposure) + " / " + (a.gross_leverage != null ? Number(a.gross_leverage).toFixed(2) + "×" : "—");
+    el("m-risk").textContent = (s.halt_reason ? s.halt_reason : "正常") + " · 日损上限 10%";
+    el("m-fs").textContent = (s.factorSet && s.factorSet.picks) ? (s.factorSet.picks.length + " 个") : "待生成";
     const fs = s.factorSet;
     el("q-factor-set").innerHTML = (fs && fs.picks && fs.picks.length)
       ? '<b>' + fs.picks.join(" · ") + '</b>' + (fs.note ? '<div class="q-decision-note">' + fs.note + ' · ' + t(fs.at) + '</div>' : '')
