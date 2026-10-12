@@ -139,7 +139,7 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
     return r.json();
   }
 
-  function spark(points, h) {
+  function spark(points, h, entryPx) {
     if (!points || points.length < 3) return '<div class="q-spark-empty">价格线积累中（每分钟一点，约 1 小时后成形）</div>';
     const vs = points.map((p) => p.p);
     let lo = Math.min.apply(null, vs), hi = Math.max.apply(null, vs);
@@ -150,7 +150,10 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
     const d = points.map((p, i) => (i ? "L" : "M") + " " + X(i) + " " + Y(p.p)).join(" ");
     const up = vs[vs.length - 1] >= vs[0];
     const color = up ? "#16a34a" : "#dc2626";
-    return '<svg viewBox="0 0 1000 ' + h + '" preserveAspectRatio="none" class="q-chart-svg"><path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="1.8" vector-effect="non-scaling-stroke"/></svg>';
+    const em = (entryPx && entryPx > lo && entryPx < hi)
+      ? '<line x1="0" x2="1000" y1="' + Y(entryPx) + '" y2="' + Y(entryPx) + '" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="10 7" />'
+      : "";
+    return '<svg viewBox="0 0 1000 ' + h + '" preserveAspectRatio="none" class="q-chart-svg">' + em + '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="1.8" vector-effect="non-scaling-stroke"/></svg>';
   }
 
   function renderMarkets(s) {
@@ -169,7 +172,7 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
       return '<article class="q-card">' +
         '<div class="q-mtitle"><h2>' + (NAME[g.asset] || g.asset) + ' / USDT 永续</h2><span class="' + cls(chg) + '">' + (chg == null ? "—" : (chg > 0 ? "+" : "") + pct(chg)) + '</span></div>' +
         '<div class="q-price"><span class="q-big">' + px(g.last) + '</span><small>买 ' + px(g.bid) + ' / 卖 ' + px(g.ask) + '</small></div>' +
-        spark(hp, 120) +
+        spark(hp, 120, (function(){ var pp=(s.positions||[]).filter(function(x){return x.asset===g.asset;})[0]; return pp?pp.entry:null; })()) +
         '<div class="q-row"><span>趋势信号</span><b class="' + (g.aboveMA ? "q-up" : "q-down") + '">' + (g.aboveMA == null ? "无数据" : (g.aboveMA ? "MA200 上方 · 持多" : "MA200 下方 · 离场")) + '</b></div>' +
         '<div class="q-row"><span>AI 上次判断</span><b>' + (g.action ? (g.action + (g.confidence != null ? ' · ' + pct(g.confidence, 1) : '')) : '—') + (g.reason ? ' <small>' + g.reason + '</small>' : '') + '</b></div>' +
         '<div class="q-row"><span>MA200</span><b>' + (g.ma200 == null ? "—" : px(g.ma200)) + '</b></div>' +
