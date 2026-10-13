@@ -281,8 +281,8 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
     el("m-risk").textContent = (s.halt_reason ? s.halt_reason : "正常") + " · 日损上限 10%";
     el("m-fs").textContent = (s.factorSet && s.factorSet.picks) ? (s.factorSet.picks.length + " 个") : "待生成";
 
-    // 证据看板
-    (function () {
+    // 证据看板（try 包裹：任何异常都不影响后续渲染）
+    try { (function () {
       const fw = s.forward || {};
       let n = 0, sum = 0;
       Object.keys(fw).forEach(function (k) { const x = fw[k]; if (x && x.n) { n += x.n; sum += x.meanRet * x.n; } });
@@ -300,7 +300,7 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
       el("ev-cost").textContent = "手续费 " + fees.toFixed(2) + "U (" + ((fees / eq0) * 100).toFixed(1) + "%) · token " + tokCost.toFixed(2) + "U (" + ((tokCost / eq0) * 100).toFixed(1) + "%)";
       const indep = Math.floor(n / 4);
       el("ev-progress").textContent = indep + " / 200 · " + (indep >= 200 ? "已可判定" : "不足（禁止下结论）");
-    })();
+    })(); } catch (e) { if (window.console) console.warn("evidence panel error", e); }
     const fs = s.factorSet;
     el("q-factor-set").innerHTML = (fs && fs.picks && fs.picks.length)
       ? '<b>' + fs.picks.join(" · ") + '</b>' + (fs.note ? '<div class="q-decision-note">' + fs.note + ' · ' + t(fs.at) + '</div>' : '')
