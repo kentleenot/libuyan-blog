@@ -281,26 +281,7 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
     el("m-risk").textContent = (s.halt_reason ? s.halt_reason : "正常") + " · 日损上限 10%";
     el("m-fs").textContent = (s.factorSet && s.factorSet.picks) ? (s.factorSet.picks.length + " 个") : "待生成";
 
-    // 证据看板（try 包裹：任何异常都不影响后续渲染）
-    try { (function () {
-      const fw = s.forward || {};
-      let n = 0, sum = 0;
-      Object.keys(fw).forEach(function (k) { const x = fw[k]; if (x && x.n) { n += x.n; sum += x.meanRet * x.n; } });
-      const aiMean = n ? (sum / n) * 100 : null;
-      const rs = s.randStat || {};
-      const randMean = rs.n ? (rs.sum / rs.n) * 100 : null;
-      el("ev-ai").textContent = aiMean == null ? "积累中" : ((aiMean >= 0 ? "+" : "") + aiMean.toFixed(4) + "%/周期");
-      el("ev-rand").textContent = randMean == null ? "积累中" : ((randMean >= 0 ? "+" : "") + randMean.toFixed(4) + "%/周期");
-      el("ev-delta").textContent = (aiMean == null || randMean == null) ? "—" : ((aiMean - randMean) >= 0 ? "+" : "") + (aiMean - randMean).toFixed(4) + "%";
-      const sh = s.shadowStat || {};
-      el("ev-shadow").textContent = sh.n ? (sh.n + " 笔 · 均值 " + ((sh.sum / sh.n) * 100).toFixed(3) + "% · 胜率 " + ((sh.hits / sh.n) * 100).toFixed(0) + "%") : "尚无（需 72 小时结算）";
-      const fees = (s.trades || []).reduce(function (a, x) { return a + (x.fee || 0); }, 0);
-      const tokCost = (((s.advisor || {}).tokens || 0) / 1000000) * 0.30;
-      const eq0 = 76.68;
-      el("ev-cost").textContent = "手续费 " + fees.toFixed(2) + "U (" + ((fees / eq0) * 100).toFixed(1) + "%) · token " + tokCost.toFixed(2) + "U (" + ((tokCost / eq0) * 100).toFixed(1) + "%)";
-      const indep = Math.floor(n / 4);
-      el("ev-progress").textContent = indep + " / 200 · " + (indep >= 200 ? "已可判定" : "不足（禁止下结论）");
-    })(); } catch (e) { if (window.console) console.warn("evidence panel error", e); }
+    // 证据看板 JS 暂时摘除（排查 renderState 运行时异常）
     const fs = s.factorSet;
     el("q-factor-set").innerHTML = (fs && fs.picks && fs.picks.length)
       ? '<b>' + fs.picks.join(" · ") + '</b>' + (fs.note ? '<div class="q-decision-note">' + fs.note + ' · ' + t(fs.at) + '</div>' : '')
