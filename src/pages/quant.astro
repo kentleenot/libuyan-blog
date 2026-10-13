@@ -47,12 +47,12 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
       <div class="q-grid" id="q-markets"></div>
 
       <section class="q-card">
-        <h2>趋势面板 · 200 日均线（只做多）</h2>
+        <h2>MA200 参考面板 · 200 日均线（只做多）</h2>
         <div class="q-tablewrap">
           <table><thead><tr><th>品种</th><th>最新价</th><th>MA200</th><th>距均线</th><th>状态</th></tr></thead>
           <tbody id="q-factors"><tr><td colspan="5" class="q-dim">等待信号</td></tr></tbody></table>
         </div>
-        <p class="q-note" id="q-factor-note">规则：价格在 200 日均线上方 → 持多；跌破 → 离场。按距均线强度排序，最多持 4 个品种，单笔 25% 净值。</p>
+        <p class="q-note" id="q-factor-note">AI 入场门槛参考：价格在 MA200 上方才允许开多（代码强制）。当前策略为 AI 判断方向 + 逐仓设定止损止盈，最多 6 仓（加密 2 / 美股 4）。</p>
       </section>
 
       <section class="q-card">
@@ -61,20 +61,20 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
       </section>
 
       <section class="q-card">
-        <h2>策略状态</h2>
+        <h2>策略状态（AI 决策）</h2>
         <div class="q-decision">
           <div><span>策略</span><strong id="d-action">—</strong></div>
           <div><span>均线上方品种</span><strong id="d-conf">—</strong></div>
           <div><span>持仓 / 上限</span><strong id="d-calls">—</strong></div>
           <div><span>今日盈亏 / 日止损</span><strong id="d-tokens">—</strong></div>
         </div>
-        <p class="q-note">DeepSeek 直接判断（每 5/10 分钟一次，8 个品种一次问完）；止盈止损由 AI 逐仓设定。</p>
+        <p class="q-note">DeepSeek 直接判断（每 5/10 分钟一次，10 个品种一次问完）；止盈止损由 AI 逐仓设定。</p>
       </section>
 
       <section class="q-card">
         <h2>模型状态</h2>
         <div class="q-decision">
-          <div><span>决策依据</span><strong>AI + 54 指标</strong></div>
+          <div><span>决策依据</span><strong>AI + 78 指标（注入 prompt 的是 AI 自选的 8-14 个）</strong></div>
           <div><span>决策频率</span><strong>持仓 5 分钟 / 空仓 10 分钟</strong></div>
           <div><span>累计调用 / Token</span><strong id="m-calls">—</strong></div>
           <div><span>总敞口 / 杠杆</span><strong id="m-exp">—</strong></div>
