@@ -313,7 +313,7 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
       if (s && s.ok) renderState(s); else throw new Error("state");
     } catch (e) {
       el("q-dot").classList.remove("q-on");
-      el("q-status").textContent = "后端暂不可用";
+      el("q-status").textContent = "渲染异常: " + (e && e.message ? e.message : String(e));
     }
   }
   async function refreshCurve() {
