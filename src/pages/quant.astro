@@ -84,6 +84,19 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
       </section>
 
       <section class="q-card">
+        <h2>证据看板 · POC 阶段的核心指标</h2>
+        <div class="q-decision">
+          <div><span>前向指标（AI 隐含方向）</span><strong id="ev-ai">—</strong></div>
+          <div><span>随机基线（对照）</span><strong id="ev-rand">—</strong></div>
+          <div><span>AI − 随机（超额）</span><strong id="ev-delta">—</strong></div>
+          <div><span>被否决候选（影子账本）</span><strong id="ev-shadow">—</strong></div>
+          <div><span>成本结构</span><strong id="ev-cost">—</strong></div>
+          <div><span>验证进度（独立样本）</span><strong id="ev-progress">—</strong></div>
+        </div>
+        <p class="q-note">判据（预注册）：独立样本 ≥ 200 且扣费后单笔边缘 95% 置信区间下界 &gt; 0，才算成功；样本不足 200 禁止下任何结论。</p>
+      </section>
+
+      <section class="q-card">
         <h2>净值曲线</h2>
         <div id="q-curve" class="q-chart"></div>
         <div class="q-curve-foot" id="q-curve-foot">等待净值记录（每分钟一条）</div>
@@ -267,6 +280,27 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
     el("m-exp").textContent = money(a.gross_exposure) + " / " + (a.gross_leverage != null ? Number(a.gross_leverage).toFixed(2) + "×" : "—");
     el("m-risk").textContent = (s.halt_reason ? s.halt_reason : "正常") + " · 日损上限 10%";
     el("m-fs").textContent = (s.factorSet && s.factorSet.picks) ? (s.factorSet.picks.length + " 个") : "待生成";
+
+    // 证据看板
+    (function () {
+      const fw = s.forward || {};
+      let n = 0, sum = 0;
+      Object.keys(fw).forEach(function (k) { const x = fw[k]; if (x && x.n) { n += x.n; sum += x.meanRet * x.n; } });
+      const aiMean = n ? (sum / n) * 100 : null;
+      const rs = s.randStat || {};
+      const randMean = rs.n ? (rs.sum / rs.n) * 100 : null;
+      el("ev-ai").textContent = aiMean == null ? "积累中" : ((aiMean >= 0 ? "+" : "") + aiMean.toFixed(4) + "%/周期");
+      el("ev-rand").textContent = randMean == null ? "积累中" : ((randMean >= 0 ? "+" : "") + randMean.toFixed(4) + "%/周期");
+      el("ev-delta").textContent = (aiMean == null || randMean == null) ? "—" : ((aiMean - randMean) >= 0 ? "+" : "") + (aiMean - randMean).toFixed(4) + "%";
+      const sh = s.shadowStat || {};
+      el("ev-shadow").textContent = sh.n ? (sh.n + " 笔 · 均值 " + ((sh.sum / sh.n) * 100).toFixed(3) + "% · 胜率 " + ((sh.hits / sh.n) * 100).toFixed(0) + "%") : "尚无（需 72 小时结算）";
+      const fees = (s.trades || []).reduce(function (a, x) { return a + (x.fee || 0); }, 0);
+      const tokCost = (((s.advisor || {}).tokens || 0) / 1000000) * 0.30;
+      const eq0 = 76.68;
+      el("ev-cost").textContent = "手续费 " + fees.toFixed(2) + "U (" + ((fees / eq0) * 100).toFixed(1) + "%) · token " + tokCost.toFixed(2) + "U (" + ((tokCost / eq0) * 100).toFixed(1) + "%)";
+      const indep = Math.floor(n / 4);
+      el("ev-progress").textContent = indep + " / 200 · " + (indep >= 200 ? "已可判定" : "不足（禁止下结论）");
+    })();
     const fs = s.factorSet;
     el("q-factor-set").innerHTML = (fs && fs.picks && fs.picks.length)
       ? '<b>' + fs.picks.join(" · ") + '</b>' + (fs.note ? '<div class="q-decision-note">' + fs.note + ' · ' + t(fs.at) + '</div>' : '')
