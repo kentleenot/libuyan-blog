@@ -220,9 +220,7 @@ const description = "DeepSeek 自主交易的 BTC / ETH 永续模拟盘：价格
     el("q-pos").innerHTML = s.positions.map((p) => '<tr><td><b>' + (NAME[p.asset] || p.asset) + '</b> <span class="' + (p.side === "LONG" ? "q-up" : "q-down") + '">' + p.side + '</span></td>' +
       '<td>' + t(p.openedAt) + '</td><td>' + px(p.entry) + '</td><td>' + num(p.qty, 5) + '</td><td>' + money(p.notional) + '</td>' +
       '<td>' + pct(p.stopPct) + ' / ' + pct(p.targetPct) + '</td>' +
-      '<td class="' + cls(p.upl != null ? p.upl : p.last_mark) + '">' + money(p.upl != null ? p.upl : p.last_mark, true) + (p.lever ? ' <small>' + p.lever + '×</small>' : '') + '</td><td>'
-      + (x.funding == null ? "—" : num(x.funding, 4)) + ' / ' + (x.exitFee == null ? "—" : num(x.exitFee, 4))
-      + '</td><td>' + (x.retPct == null ? "—" : (x.retPct > 0 ? '+' : '') + num(x.retPct, 2) + '%')
+      '<td class="' + cls(p.upl != null ? p.upl : p.last_mark) + '">' + money(p.upl != null ? p.upl : p.last_mark, true) + (p.lever ? ' <small>' + p.lever + '×</small>' : '') + '</td>'
       + '</td></tr>').join("");
   }
 
