@@ -1,7 +1,7 @@
 ---
 title: "《桂州秋日寄北》——李不言 AI 制作"
 author: "李不言"
-pubDatetime: 2026-10-29T19:05:00+08:00
+pubDatetime: 2026-10-29T18:30:00+08:00
 slug: gui-zhou-qiu-ri-ji-bei
 featured: false
 draft: false
