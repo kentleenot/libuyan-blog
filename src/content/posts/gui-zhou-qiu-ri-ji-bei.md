@@ -13,6 +13,11 @@ description: "「一啸千峰万壑赴，始知绝顶无人诉。」桂林秋色
 
 > 「一啸千峰万壑赴，始知绝顶无人诉。」
 
+<audio controls preload="metadata" style="width:100%;margin:16px 0;">
+  <source src="/audio/gui-zhou-qiu-ri-ji-bei.mp3" type="audio/mpeg" />
+  你的浏览器不支持音频播放。
+</audio>
+
 ## 桂州秋日寄北
 
 桂林秋色满江隈，千峰如洗为谁来。  
